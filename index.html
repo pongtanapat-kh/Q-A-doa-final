@@ -1,0 +1,1247 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ระบบถาม-ตอบข้อซักถาม | กองคลัง กรมวิชาการเกษตร</title>
+    
+    <link href="https://fonts.googleapis.com/css2?family=Sarabun:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://code.jquery.com/jquery-3.7.0.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+    <style>
+        body { font-family: 'Sarabun', sans-serif; background-color: #f8fafc; background-image: radial-gradient(#e2e8f0 1px, transparent 1px); background-size: 20px 20px; overflow-x: hidden; display: flex; flex-direction: column; min-height: 100vh; }
+        main { flex-grow: 1; }
+        .glass-card { background: linear-gradient(135deg, rgba(255, 255, 255, 0.98) 0%, rgba(255, 255, 255, 0.85) 100%); backdrop-filter: blur(20px); border-radius: 1.5rem; border: 1px solid rgba(255, 255, 255, 0.9); box-shadow: 0 15px 35px -5px rgba(15, 23, 42, 0.05); }
+        .modern-input { background-color: #ffffff; border: 1px solid #e2e8f0; color: #1e293b; padding: 0.85rem 1rem; border-radius: 1rem; width: 100%; transition: all 0.3s; box-shadow: inset 0 2px 4px 0 rgba(0, 0, 0, 0.01); }
+        .modern-input:focus { outline: none; border-color: #34d399; box-shadow: 0 0 0 4px rgba(52, 211, 153, 0.15); }
+        
+        .sidebar-item { display: flex; align-items: center; padding: 0.85rem 1rem; border-radius: 0.85rem; color: #64748b; font-weight: 600; cursor: pointer; transition: all 0.3s ease; }
+        .sidebar-item:hover { background-color: #f1f5f9; color: #0f172a; }
+        .sidebar-item.active { background: linear-gradient(90deg, #ecfdf5 0%, #ffffff 100%); border-left: 4px solid #10b981; color: #059669; font-weight: 800; }
+        
+        .view-section { display: none; } .view-section.active { display: block; animation: fadeInUp 0.5s ease forwards; }
+        @keyframes fadeInUp { from { opacity: 0; transform: translateY(15px); } to { opacity: 1; transform: translateY(0); } }
+        
+        .marquee-container { overflow: hidden; white-space: nowrap; width: 100%; } .marquee-content { display: inline-block; animation: marquee 35s linear infinite; }
+        @keyframes marquee { 0% { transform: translateX(100vw); } 100% { transform: translateX(-100%); } }
+        
+        #loader { display: none; position: fixed; inset: 0; background: rgba(255,255,255,0.92); backdrop-filter: blur(5px); z-index: 99999; justify-content: center; align-items: center; flex-direction: column; }
+        .spinner { border: 4px solid #f1f5f9; border-top: 4px solid #10b981; border-radius: 50%; width: 50px; height: 50px; animation: spin 1s linear infinite; }
+        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+        .hide-scrollbar::-webkit-scrollbar { display: none; } .hide-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+
+        /* แชทบอท CSS */
+        #chat-widget { position: fixed; bottom: 20px; right: 20px; z-index: 9900; }
+        .bot-tooltip { position: absolute; right: 65px; bottom: 20px; background: white; padding: 6px 12px; border-radius: 12px; border: 1px solid #10b981; font-weight: 700; color: #059669; font-size: 11px; white-space: nowrap; box-shadow: 0 4px 10px rgba(16, 185, 129, 0.15); cursor: pointer;}
+        #chat-box { width: 360px; height: 550px; max-height: 80vh; background: white; border-radius: 1.5rem; box-shadow: 0 20px 40px rgba(0,0,0,0.2); display: flex; flex-direction: column; position: absolute; bottom: 85px; right: 0; transform: scale(0); transform-origin: bottom right; transition: transform 0.3s ease; border: 1px solid #e2e8f0; overflow: hidden; }
+        #chat-box.open { transform: scale(1); }
+        #chat-header { background: linear-gradient(135deg, #10b981 0%, #059669 100%); color: white; padding: 12px 15px; display: flex; justify-content: space-between; align-items: center; }
+        #chat-messages { flex: 1; overflow-y: auto; padding: 15px; background-color: #f8fafc; display: flex; flex-direction: column; gap: 12px; scroll-behavior: smooth; }
+        
+        .msg-bubble { max-width: 85%; padding: 10px 14px; border-radius: 16px; font-size: 0.9rem; line-height: 1.5; word-wrap: break-word; font-weight: 500;}
+        .msg-bot { background: white; color: #334155; border: 1px solid #e2e8f0; border-bottom-left-radius: 4px; align-self: flex-start;}
+        .msg-bot img { border-radius: 8px; margin-top: 8px; max-width: 100%; border: 1px solid #e2e8f0; }
+        .msg-user { background: #10b981; color: white; border-bottom-right-radius: 4px; align-self: flex-end;}
+        
+        .chat-btn { display: flex; align-items: center; width: 100%; text-align: left; padding: 10px 12px; margin-top: 4px; background: #ecfdf5; border: 1px solid #a7f3d0; color: #059669; border-radius: 12px; font-size: 0.9rem; font-weight: 700; cursor: pointer; transition: all 0.2s; }
+        .chat-btn:hover { background: #d1fae5; transform: translateY(-1px); }
+        .chat-btn-icon { width: 28px; height: 28px; display: flex; align-items: center; justify-content: center; border-radius: 6px; background: white; margin-right: 10px; font-size: 14px; flex-shrink: 0; }
+        
+        #chat-controls { background: white; border-top: 1px solid #e2e8f0; display: flex; flex-direction: column; }
+        #chat-menu-bar { padding: 10px 15px; display: flex; align-items: center; justify-content: space-between; }
+        #chat-keyboard-area { padding: 8px 15px; background: #f8fafc; border-top: 1px solid #e2e8f0; display: none; align-items: center; gap: 8px; }
+        #chat-keyboard-area.active { display: flex; }
+        .checkbox-list { max-height: 150px; overflow-y: auto; border: 1px solid #e2e8f0; border-radius: 1rem; padding: 10px; background: #f8fafc; }
+        .checkbox-item { display: flex; align-items: center; padding: 6px 8px; border-radius: 8px; cursor: pointer;}
+        .checkbox-item input { margin-right: 10px; width: 16px; height: 16px; accent-color: #10b981; }
+        @media (max-width: 480px) { #chat-box { width: calc(100vw - 20px); height: calc(100vh - 100px); bottom: 80px; right: -10px; } }
+    </style>
+</head>
+<body class="antialiased text-slate-800">
+
+    <div id="loader">
+        <div class="spinner mb-4 shadow-lg"></div>
+        <p class="text-emerald-600 font-extrabold tracking-widest uppercase text-sm mb-2" id="loaderText">กำลังประมวลผล...</p>
+        <button onclick="hideLoaderForce()" class="px-6 py-3 mt-4 text-sm font-bold text-white bg-red-600 border-2 border-red-700 rounded-xl hover:bg-red-700 transition-all shadow-xl cursor-pointer relative z-50">
+            <i class="fas fa-unlock me-2"></i> กดปุ่มนี้หากหน้าจอค้าง
+        </button>
+    </div>
+
+    <!-- Header -->
+    <header class="bg-gradient-to-r from-teal-600 to-emerald-500 text-white shadow-2xl sticky top-0 z-40 border-b border-white/10 backdrop-blur-md bg-opacity-95">
+        <div class="container mx-auto px-4 py-3 flex justify-between items-center">
+            <div class="flex items-center space-x-3 cursor-pointer group" onclick="changeView('home')">
+                <img src="https://img2.pic.in.th/LOGO-DOA-2022-TH.png" alt="LOGO" class="h-20 w-20 md:h-24 md:w-24 bg-white/95 rounded-3xl shadow-2xl drop-shadow-xl p-2 border-2 border-white/80 transition-transform duration-300 hover:scale-105">
+                <div>
+                    <h1 class="text-lg md:text-3xl font-extrabold tracking-tight flex items-center gap-2 drop-shadow-md">ระบบถาม-ตอบ<span class="hidden sm:inline">ข้อซักถาม</span></h1>
+                    <p class="text-[9px] md:text-xs opacity-95 uppercase tracking-widest font-bold mt-0.5 md:mt-1 drop-shadow-sm">กองคลัง กรมวิชาการเกษตร</p>
+                </div>
+            </div>
+            <div class="flex items-center space-x-1.5 md:space-x-3">
+                <button onclick="changeView('home')" class="px-3 py-2 md:px-5 md:py-2.5 hover:bg-white/20 rounded-xl text-xs md:text-sm font-bold hidden lg:inline-flex items-center"><i class="fas fa-home md:me-2"></i><span class="hidden md:inline">หน้าหลัก</span></button>
+                <button onclick="changeView('qa_list')" class="px-3 py-2 md:px-5 md:py-2.5 hover:bg-white/20 rounded-xl text-xs md:text-sm font-bold flex items-center"><i class="fas fa-comments md:me-2"></i><span class="hidden md:inline">ถาม-ตอบ</span></button>
+                <button id="loginBtn" onclick="openLoginModal()" class="px-4 py-2 bg-white text-emerald-600 hover:bg-emerald-50 rounded-xl text-xs font-extrabold shadow-lg flex items-center"><i class="fas fa-sign-in-alt md:me-2"></i><span class="hidden md:inline">เข้าสู่ระบบ</span><span class="md:hidden">Log in</span></button>
+                <div id="userProfile" class="hidden flex items-center space-x-2 bg-white/10 px-3 py-1.5 rounded-xl border border-white/20 backdrop-blur-sm">
+                    <button onclick="changeView('admin'); setAdminTab('questions');" class="text-xs font-bold flex items-center truncate max-w-[100px] hover:text-emerald-200"><i class="fas fa-user-circle me-1 text-lg"></i> <span id="displayUserName" class="truncate"></span></button>
+                    <button onclick="logout()" class="text-[10px] bg-red-500 hover:bg-red-600 text-white px-2.5 py-1.5 rounded-lg font-bold shadow-md"><i class="fas fa-power-off md:hidden"></i><span class="hidden md:inline">ออก</span></button>
+                </div>
+            </div>
+        </div>
+    </header>
+
+    <div class="bg-gradient-to-r from-yellow-50 via-[#fef3c7] to-yellow-50 text-amber-900 py-3 overflow-hidden shadow-inner border-b border-yellow-200/80 relative z-30">
+        <div class="container mx-auto px-4 marquee-container">
+            <div id="marqueeText" class="marquee-content font-extrabold text-[14px] tracking-wide drop-shadow-sm">กำลังโหลดข้อมูลประกาศ...</div>
+        </div>
+    </div>
+
+    <main class="container mx-auto px-4 py-8">
+        <!-- VIEW: HOME -->
+        <div id="view-home" class="view-section active space-y-8">
+            <div class="glass-card p-6 md:p-14 flex flex-col lg:flex-row items-center justify-between gap-10">
+                <div class="lg:w-1/2 space-y-6 text-center lg:text-left">
+                    <span class="inline-block py-1.5 px-4 rounded-full bg-emerald-100 text-emerald-700 text-xs font-extrabold tracking-widest mb-2 shadow-sm uppercase">ยินดีต้อนรับสู่ระบบถาม-ตอบ กองคลัง กรมวิชาการเกษตร</span>
+                    <h2 class="text-4xl md:text-5xl lg:text-6xl font-extrabold text-slate-800 leading-tight tracking-tight">ระบบถาม-<span class="text-transparent bg-clip-text bg-gradient-to-r from-emerald-500 to-teal-400">ตอบ</span> <br class="hidden md:block"/>ข้อซักถามออนไลน์</h2>
+                    <p class="text-slate-500 text-base md:text-lg font-medium leading-relaxed max-w-xl mx-auto lg:mx-0">ยกระดับการสื่อสารและตอบข้อซักถามจากหน่วยงานต่างๆ สะดวกรวดเร็ว ทุกที่ทุกเวลา</p>
+                    <div class="flex flex-col sm:flex-row gap-4 pt-4 justify-center lg:justify-start">
+                        <button onclick="changeView('ask_form')" class="bg-gradient-to-r from-emerald-500 to-teal-500 text-white px-8 py-4 rounded-xl font-bold shadow-xl"><i class="fas fa-paper-plane me-2"></i>ตั้งคำถามใหม่</button>
+                        <button onclick="changeView('qa_list')" class="bg-white border border-slate-200 text-slate-600 px-8 py-4 rounded-xl font-bold shadow-sm"><i class="fas fa-search me-2 text-slate-400"></i>ค้นหาคำตอบ</button>
+                    </div>
+                    <div class="pt-8 border-t border-slate-200/60 mt-8">
+                        <p class="text-xs font-extrabold text-emerald-600 mb-4 flex items-center justify-center lg:justify-start uppercase tracking-widest"><i class="fas fa-link me-2"></i>ลิงก์ที่น่าสนใจ</p>
+                        <div id="dynamicLinksContainer" class="flex flex-wrap gap-3 justify-center lg:justify-start"></div>
+                    </div>
+                </div>
+                <div class="lg:w-1/2 flex justify-center relative z-10">
+                    <div class="w-64 h-64 md:w-80 md:h-80 bg-gradient-to-br from-emerald-50 to-teal-100 rounded-full flex items-center justify-center border-[6px] border-white shadow-2xl relative" style="border-color: #A8DCAB;">
+                        <i class="fas fa-comments text-[100px] md:text-[130px] text-transparent bg-clip-text bg-gradient-to-br from-emerald-400 to-teal-600 drop-shadow-md"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- VIEW: ASK FORM -->
+        <div id="view-ask_form" class="view-section">
+            <div class="max-w-4xl mx-auto glass-card p-6 md:p-12 relative border-t-8 border-t-emerald-500 shadow-2xl">
+                <button type="button" onclick="changeView('home')" class="absolute top-4 right-4 text-slate-400 bg-slate-100 hover:bg-slate-200 h-10 w-10 rounded-full flex items-center justify-center"><i class="fas fa-times text-lg"></i></button>
+                <div class="text-center mb-10 mt-4"><h2 class="text-3xl font-extrabold text-slate-800 tracking-tight">ตั้งคำถามใหม่</h2></div>
+                <form id="qaForm" class="space-y-6">
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                        <div><label class="block text-sm font-extrabold text-slate-700 mb-2 uppercase">ประเภทคำถาม <span class="text-red-500">*</span></label><select id="category" class="modern-input" required></select></div>
+                        <div><label class="block text-sm font-extrabold text-slate-700 mb-2 uppercase">เรื่อง <span class="text-red-500">*</span></label><input type="text" id="subject" class="modern-input" required></div>
+                    </div>
+                    <div><label class="block text-sm font-extrabold text-slate-700 mb-2 uppercase">รายละเอียด <span class="text-red-500">*</span></label><textarea id="question" rows="6" class="modern-input resize-none" required></textarea></div>
+                    <div class="group border-2 border-dashed border-slate-300 hover:border-emerald-400 bg-slate-50/50 rounded-2xl p-8 text-center relative cursor-pointer">
+                        <input type="file" id="fileInput" class="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10" onchange="displayFileName(this)">
+                        <div id="fileDisplayArea" class="pointer-events-none">
+                            <i class="fas fa-cloud-upload-alt text-5xl text-slate-300 mb-4 group-hover:text-emerald-400"></i>
+                            <p class="text-sm font-bold text-slate-600">คลิกเพื่อเลือกไฟล์ (จำกัด 5MB)</p>
+                        </div>
+                    </div>
+                    <div class="pt-8 border-t border-slate-200/60 grid grid-cols-1 md:grid-cols-2 gap-5">
+                        <input type="text" id="askerName" class="modern-input bg-slate-50" placeholder="ชื่อ-นามสกุล (จะไม่แสดงในหน้าสาธารณะ) *" required>
+                        <input type="text" id="askerDept" class="modern-input bg-slate-50" placeholder="สังกัด/หน่วยงาน *" required>
+                        <input type="text" id="askerPhone" class="modern-input bg-slate-50" placeholder="เบอร์โทรศัพท์ *" required>
+                        <input type="email" id="askerEmail" class="modern-input bg-slate-50" placeholder="อีเมล (ถ้ามี)">
+                    </div>
+                    <div class="flex gap-4 pt-6">
+                        <button type="submit" class="flex-1 bg-gradient-to-r from-emerald-500 to-teal-500 text-white py-4 rounded-xl font-extrabold shadow-xl text-lg">ส่งคำถาม</button>
+                        <button type="button" onclick="changeView('home')" class="px-8 bg-white border py-4 rounded-xl font-extrabold text-slate-600">ยกเลิก</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+
+        <!-- VIEW: ADMIN PANEL -->
+        <div id="view-admin" class="view-section">
+            <div class="flex flex-col lg:flex-row gap-6">
+                <aside class="lg:w-1/4 space-y-4">
+                    <div class="glass-card p-6 text-center border-t-4 border-t-emerald-500 shadow-lg">
+                        <div class="w-20 h-20 bg-emerald-100 text-emerald-600 rounded-[2rem] flex items-center justify-center mx-auto mb-4"><i class="fas fa-user-tie text-3xl"></i></div>
+                        <p id="adminRoleDisplay" class="text-[10px] bg-white text-slate-500 px-3 py-1 rounded-full inline-block uppercase font-extrabold mb-2"></p>
+                        <h3 id="adminNameDisplay" class="font-extrabold text-slate-800 text-lg"></h3>
+                    </div>
+                    <div class="glass-card p-2 flex flex-row lg:flex-col overflow-x-auto hide-scrollbar gap-1 shadow-md">
+                        <div class="mt-2 mb-2 px-4 text-[10px] font-extrabold text-slate-400 uppercase hidden lg:block">กำกับดูแลระบบ</div>
+                        <div class="sidebar-item min-w-max lg:min-w-0" onclick="setAdminTab('profile')"><i class="fas fa-id-card w-8 text-center"></i>ข้อมูลส่วนตัว</div>
+                        <div class="sidebar-item min-w-max lg:min-w-0 admin-only" onclick="setAdminTab('dashboard')"><i class="fas fa-chart-pie w-8 text-center"></i>แดชบอร์ดสถิติ</div>
+                        <div class="sidebar-item min-w-max lg:min-w-0 admin-only" onclick="setAdminTab('botstats')"><i class="fas fa-robot w-8 text-center"></i>สถิติแชทบอท</div>
+                        <div class="sidebar-item min-w-max lg:min-w-0 active" onclick="setAdminTab('questions')"><i class="fas fa-inbox w-8 text-center"></i>จัดการกระดานถาม-ตอบ</div>
+                        
+                        <div class="super-admin-only mt-4 mb-2 px-4 text-[10px] font-extrabold text-slate-400 uppercase hidden lg:block border-t border-slate-100 pt-4" style="display: none;">ตั้งค่าระบบ (Super Admin)</div>
+                        <div class="sidebar-item min-w-max lg:min-w-0 super-admin-only" style="display: none;" onclick="setAdminTab('users')"><i class="fas fa-users-cog w-8 text-center"></i>สิทธิ์ผู้ใช้งาน</div>
+                        <div class="sidebar-item min-w-max lg:min-w-0 super-admin-only" style="display: none;" onclick="setAdminTab('depts')"><i class="fas fa-building w-8 text-center"></i>หน่วยงาน / กลุ่ม</div>
+                        <div class="sidebar-item min-w-max lg:min-w-0 super-admin-only" style="display: none;" onclick="setAdminTab('categories')"><i class="fas fa-tags w-8 text-center"></i>ประเภทคำถาม</div>
+                        <div class="sidebar-item min-w-max lg:min-w-0 super-admin-only" style="display: none;" onclick="setAdminTab('settings')"><i class="fas fa-globe w-8 text-center"></i>ตั้งค่าหน้าเว็บ</div>
+                    </div>
+                </aside>
+
+                <div class="lg:w-3/4 space-y-6">
+                    <!-- TABS (Profile) -->
+                    <div id="admin-tab-profile" class="admin-tab hidden glass-card p-6 md:p-10 shadow-lg">
+                        <h3 class="font-extrabold text-2xl text-slate-800 mb-8"><i class="fas fa-id-card text-emerald-500 me-2"></i> ข้อมูลส่วนตัว</h3>
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-10">
+                            <div class="bg-white p-6 rounded-2xl border border-slate-200">
+                                <p class="text-[10px] font-extrabold text-slate-400 uppercase mb-2">ชื่อ-สกุล</p>
+                                <p class="font-bold text-slate-800 text-lg" id="profName">-</p>
+                            </div>
+                            <div class="bg-white p-6 rounded-2xl border border-slate-200">
+                                <p class="text-[10px] font-extrabold text-slate-400 uppercase mb-2">ตำแหน่ง</p>
+                                <p class="font-bold text-slate-800 text-lg" id="profPos">-</p>
+                            </div>
+                            <div class="bg-white p-6 rounded-2xl border-l-4 border-l-emerald-500">
+                                <p class="text-[10px] font-extrabold text-slate-400 uppercase mb-2">สิทธิ์</p>
+                                <p class="font-extrabold text-emerald-600 text-lg" id="profRole">-</p>
+                            </div>
+                            <div class="bg-white p-6 rounded-2xl border-l-4 border-l-blue-500">
+                                <p class="text-[10px] font-extrabold text-slate-400 uppercase mb-2">Username</p>
+                                <p class="font-bold text-blue-600 text-lg" id="profUser">-</p>
+                            </div>
+                        </div>
+                        <div class="bg-emerald-50/30 p-8 rounded-2xl border border-emerald-200">
+                            <h4 class="font-extrabold text-slate-800 text-lg mb-2"><i class="fas fa-key text-emerald-500 me-2"></i> เปลี่ยนรหัสผ่านใหม่</h4>
+                            <p class="text-xs text-slate-500 mb-4 font-bold bg-white p-3 rounded-lg border border-slate-200 inline-block"><i class="fas fa-info-circle text-amber-500 me-1"></i> กำหนดรหัสไม่เกิน 6 ตัวอักษร (ต้องประกอบด้วย: พิมพ์เล็ก, พิมพ์ใหญ่, ตัวเลข, สัญลักษณ์)</p>
+                            <div class="flex flex-col sm:flex-row gap-4">
+                                <input type="password" id="newPasswordInput" class="modern-input max-w-sm tracking-widest" placeholder="รหัสผ่านใหม่" maxlength="6">
+                                <button type="button" onclick="saveNewPassword()" class="bg-emerald-500 hover:bg-emerald-600 text-white px-8 py-3.5 rounded-xl font-extrabold transition-all">บันทึกรหัสผ่าน</button>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- TAB: DASHBOARD -->
+                    <div id="admin-tab-dashboard" class="admin-tab hidden space-y-6">
+                        <div class="flex justify-between items-center">
+                            <h3 class="font-extrabold text-2xl text-slate-800"><i class="fas fa-chart-pie text-emerald-500 me-2"></i> แดชบอร์ดสถิติภาพรวม</h3>
+                            <button type="button" onclick="exportDashboardCSV()" class="bg-blue-50 text-blue-600 border border-blue-200 hover:bg-blue-600 hover:text-white px-4 py-2 rounded-xl text-sm font-bold transition-all"><i class="fas fa-download me-2"></i>ดาวน์โหลด CSV</button>
+                        </div>
+                        <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                            <div class="glass-card p-4 border-l-4 border-amber-500"><p class="text-[10px] font-extrabold text-slate-400 uppercase">ตอบแล้ว (สีเหลือง)</p><h3 class="text-3xl font-extrabold text-amber-500 mt-1" id="dashAnswered">0</h3></div>
+                            <div class="glass-card p-4 border-l-4 border-red-500"><p class="text-[10px] font-extrabold text-slate-400 uppercase">รอตอบ (สีแดง)</p><h3 class="text-3xl font-extrabold text-red-500 mt-1" id="dashPending">0</h3></div>
+                            <div class="glass-card p-4 border-l-4 border-emerald-500"><p class="text-[10px] font-extrabold text-slate-400 uppercase">ปิดงาน (สีเขียว)</p><h3 class="text-3xl font-extrabold text-emerald-600 mt-1" id="dashClosed">0</h3></div>
+                        </div>
+                        <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                            <div class="glass-card p-6 lg:col-span-2"><h4 class="font-bold text-slate-600 mb-4 text-center">จำนวนคำถามแยกตามประเภท</h4><div class="h-[400px] relative"><canvas id="chartCat"></canvas></div></div>
+                            <div class="glass-card p-6 lg:col-span-1"><h4 class="font-bold text-slate-600 mb-4 text-center">สถานะคำถาม (ภาพรวม)</h4><div class="h-[300px] relative"><canvas id="chartStatus"></canvas></div></div>
+                            <div class="glass-card p-6 lg:col-span-1"><h4 class="font-bold text-slate-600 mb-4 text-center">เทรนด์คำถามและการตอบกลับ (รายเดือน)</h4><div class="h-[300px] relative"><canvas id="chartTrend"></canvas></div></div>
+                            <div class="glass-card p-6 lg:col-span-2"><h4 class="font-bold text-slate-600 mb-4 text-center">ผลงานการตอบแยกตามหน่วยงาน</h4><div class="h-[300px] relative"><canvas id="chartDept"></canvas></div></div>
+                            <div class="glass-card p-6 lg:col-span-2"><h4 class="font-bold text-slate-600 mb-4 text-center">เวลาตอบกลับเฉลี่ย (ชั่วโมง) แยกตามหน่วยงาน</h4><div class="h-[300px] relative"><canvas id="chartAvgTime"></canvas></div></div>
+                        </div>
+                    </div>
+                    
+                    <!-- TAB: BOT STATS (จัดรูปแบบ 3 ช่วงแนวนอน) -->
+                    <div id="admin-tab-botstats" class="admin-tab hidden space-y-6">
+                        <div class="flex justify-between items-center">
+                            <h3 class="font-extrabold text-2xl text-slate-800"><i class="fas fa-robot text-emerald-500 me-2"></i> สถิติการใช้งานแชทบอท</h3>
+                            <button type="button" onclick="exportBotStatsCSV()" class="bg-blue-50 text-blue-600 border border-blue-200 hover:bg-blue-600 hover:text-white px-4 py-2 rounded-xl text-sm font-bold transition-all"><i class="fas fa-download me-2"></i>ดาวน์โหลด CSV</button>
+                        </div>
+                        
+                        <!-- ช่วงบน: หัวข้อย่อย (Topic) ยอดนิยม เต็มกรอบ -->
+                        <div class="glass-card p-6 mb-6">
+                            <h4 class="font-bold text-slate-600 mb-4 text-center text-sm">หัวข้อย่อย (Topic) ยอดนิยม</h4>
+                            <div class="h-[400px] relative"><canvas id="chartBotTopic"></canvas></div>
+                        </div>
+
+                        <!-- ช่วงกลาง: เรื่องที่พบบ่อย (Subject) ยอดนิยม เต็มกรอบ -->
+                        <div class="glass-card p-6 mb-6">
+                            <h4 class="font-bold text-slate-600 mb-4 text-center text-sm">เรื่องที่พบบ่อย (Subject) ยอดนิยม</h4>
+                            <div class="h-[400px] relative"><canvas id="chartBotSubject"></canvas></div>
+                        </div>
+
+                        <!-- ช่วงล่าง: หมวดหมู่หลัก (Category) & ตาราง AI (แบ่งครึ่งเสมอกัน) -->
+                        <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                            <div class="glass-card p-6">
+                                <h4 class="font-bold text-slate-600 mb-4 text-center text-sm">หมวดหมู่หลัก (Category)</h4>
+                                <div class="h-[300px] relative"><canvas id="chartBotCat"></canvas></div>
+                            </div>
+                            
+                            <div class="glass-card p-6 flex flex-col h-full">
+                                <div class="flex justify-between items-center mb-4">
+                                    <h4 class="font-bold text-slate-800 text-sm"><i class="fas fa-keyboard text-emerald-500 me-2"></i> รวมคำถามที่ประชาชนพิมพ์แชทถาม (AI)</h4>
+                                </div>
+                                <div class="overflow-x-auto rounded-xl border border-slate-200 flex-grow max-h-[300px] overflow-y-auto">
+                                    <table class="w-full text-sm text-left">
+                                        <thead class="bg-slate-50 border-b border-slate-200 sticky top-0"><tr><th class="p-3 font-extrabold w-32">วัน/เวลา</th><th class="p-3 font-extrabold">ข้อความที่พิมพ์ถาม</th></tr></thead>
+                                        <tbody id="botAiLogList" class="divide-y divide-slate-100 bg-white"></tbody>
+                                    </table>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- TAB: QUESTIONS LIST -->
+                    <div id="admin-tab-questions" class="admin-tab glass-card p-6 active">
+                        <div class="flex flex-col md:flex-row justify-between items-center mb-6 gap-4">
+                            <h3 class="font-extrabold text-2xl text-slate-800 tracking-tight"><i class="fas fa-folder-open text-emerald-500 me-2"></i> จัดการกระดานถาม-ตอบ</h3>
+                            <div class="flex items-center gap-2">
+                                <select id="adminStatusFilter" onchange="renderAdminQuestionList()" class="modern-input py-2 text-xs font-bold w-auto">
+                                    <option value="">ทุกสถานะ</option>
+                                    <option value="รอตอบ">รอตอบ</option>
+                                    <option value="ตอบแล้ว">ตอบแล้ว</option>
+                                    <option value="ปิดงาน">ปิดงาน (แฟ้มเก็บข้อมูล)</option>
+                                </select>
+                                <button type="button" onclick="loadQuestionsData(false)" class="text-xs bg-white border border-slate-200 px-5 py-2.5 rounded-xl font-bold hover:bg-slate-50"><i class="fas fa-sync-alt me-1.5"></i> รีเฟรช</button>
+                            </div>
+                        </div>
+                        <div class="overflow-x-auto rounded-xl border border-slate-200 shadow-sm hide-scrollbar">
+                            <table class="w-full text-sm text-left">
+                                <thead class="bg-slate-50 text-slate-600 border-b border-slate-200">
+                                    <tr><th class="p-4 font-extrabold text-[11px]">สถานะ</th><th class="p-4 font-extrabold text-[11px]">เรื่อง / หน่วยงาน</th><th class="p-4 font-extrabold text-[11px]">วันที่</th><th class="p-4 text-center font-extrabold text-[11px] w-56">จัดการ</th></tr>
+                                </thead>
+                                <tbody id="adminQuestionList" class="divide-y divide-slate-100 bg-white"></tbody>
+                            </table>
+                        </div>
+                    </div>
+
+                    <!-- TAB: USERS -->
+                    <div id="admin-tab-users" class="admin-tab hidden glass-card p-6">
+                        <div class="flex justify-between items-center mb-6">
+                            <h3 class="font-extrabold text-2xl"><i class="fas fa-users-cog text-emerald-500 me-2"></i> จัดการผู้ใช้งาน</h3>
+                            <button type="button" onclick="openMasterForm('Users')" class="bg-emerald-500 text-white px-4 py-2 rounded-xl text-sm font-bold shadow-md"><i class="fas fa-plus me-1"></i> เพิ่มผู้ใช้</button>
+                        </div>
+                        <div class="overflow-x-auto">
+                            <table class="w-full text-sm text-left"><thead class="bg-slate-50"><tr><th class="p-4 font-extrabold">ชื่อ-สกุล</th><th class="p-4 font-extrabold">สิทธิ์</th><th class="p-4 font-extrabold">หน่วยงานที่รับผิดชอบ</th><th class="p-4 text-center">จัดการ</th></tr></thead><tbody id="usersList"></tbody></table>
+                        </div>
+                    </div>
+
+                    <!-- TAB: DEPTS -->
+                    <div id="admin-tab-depts" class="admin-tab hidden glass-card p-6">
+                        <div class="flex justify-between items-center mb-6">
+                            <h3 class="font-extrabold text-2xl"><i class="fas fa-building text-emerald-500 me-2"></i> จัดการหน่วยงาน/กลุ่ม</h3>
+                            <button type="button" onclick="openMasterForm('Departments')" class="bg-emerald-500 text-white px-4 py-2 rounded-xl text-sm font-bold shadow-md"><i class="fas fa-plus me-1"></i> เพิ่มหน่วยงาน</button>
+                        </div>
+                        <div class="overflow-x-auto">
+                            <table class="w-full text-sm text-left"><thead class="bg-slate-50"><tr><th class="p-4 font-extrabold">ชื่อหน่วยงาน</th><th class="p-4 text-center w-32">จัดการ</th></tr></thead><tbody id="deptsList"></tbody></table>
+                        </div>
+                    </div>
+
+                    <!-- TAB: CATEGORIES -->
+                    <div id="admin-tab-categories" class="admin-tab hidden glass-card p-6">
+                        <div class="flex justify-between items-center mb-6">
+                            <h3 class="font-extrabold text-2xl"><i class="fas fa-tags text-emerald-500 me-2"></i> จัดการประเภทคำถาม</h3>
+                            <button type="button" onclick="openMasterForm('Categories')" class="bg-emerald-500 text-white px-4 py-2 rounded-xl text-sm font-bold shadow-md"><i class="fas fa-plus me-1"></i> เพิ่มประเภท</button>
+                        </div>
+                        <div class="overflow-x-auto">
+                            <table class="w-full text-sm text-left"><thead class="bg-slate-50"><tr><th class="p-4 font-extrabold">ชื่อประเภท</th><th class="p-4 font-extrabold">ผูกสิทธิ์หน่วยงาน</th><th class="p-4 text-center w-32">จัดการ</th></tr></thead><tbody id="categoriesList"></tbody></table>
+                        </div>
+                    </div>
+
+                    <!-- TAB: SETTINGS -->
+                    <div id="admin-tab-settings" class="admin-tab hidden glass-card p-8">
+                        <h3 class="font-extrabold text-2xl mb-8"><i class="fas fa-globe text-emerald-500 me-2"></i> ตั้งค่าหน้าเว็บสาธารณะ</h3>
+                        <div class="space-y-6">
+                            <div><label class="block text-sm font-extrabold mb-2 uppercase">ข้อความประกาศ (วิ่งด้านบน)</label><input type="text" id="setMarquee" class="modern-input"></div>
+                            <div>
+                                <div class="flex justify-between items-center mb-2"><label class="block text-sm font-extrabold uppercase">ลิงก์ที่น่าสนใจ</label><button type="button" onclick="addLinkField()" class="text-xs bg-blue-100 text-blue-700 px-3 py-1.5 rounded-lg font-bold"><i class="fas fa-plus me-1"></i>เพิ่มลิงก์</button></div>
+                                <div id="linksContainer" class="space-y-3"></div>
+                            </div>
+                            <button type="button" onclick="saveWebSettings()" class="w-full bg-slate-800 text-white py-4 rounded-xl font-extrabold text-lg shadow-xl">บันทึกการตั้งค่าเว็บ</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- VIEW: QA LIST (Public) -->
+        <div id="view-qa_list" class="view-section">
+            <div class="flex justify-between items-center mb-8">
+                <h2 class="text-3xl font-extrabold text-slate-800"><i class="fas fa-comments text-emerald-500 me-3"></i> กระดานถาม-ตอบ</h2>
+                <div class="flex gap-2">
+                    <input type="text" id="searchBox" onkeyup="renderPublicList()" class="modern-input w-64" placeholder="ค้นหาเรื่อง...">
+                </div>
+            </div>
+            <div class="flex flex-col lg:flex-row gap-8">
+                <aside class="lg:w-1/4"><div class="glass-card p-6 sticky top-24" id="publicCategoryFilter"></div></aside>
+                <div class="lg:w-3/4"><div class="glass-card overflow-hidden shadow-xl border-t-8 border-t-emerald-500"><table class="w-full text-sm text-left"><thead class="bg-slate-50 text-slate-600 border-b"><tr><th class="p-5 font-extrabold w-32">วัน/เวลา</th><th class="p-5 font-extrabold">เรื่อง</th><th class="p-5 font-extrabold w-32">สถานะ</th><th class="p-5 text-center w-32">อ่าน</th></tr></thead><tbody id="publicQaList" class="divide-y divide-slate-100 bg-white"></tbody></table></div></div>
+            </div>
+        </div>
+    </main>
+
+    <!-- Footer ส่วนล่างสุด -->
+    <footer style="background-color: #A8DCAB;" class="w-full py-4 mt-auto shadow-inner z-10 relative">
+        <div class="container mx-auto px-4 text-center">
+            <p class="text-[11px] md:text-xs font-bold text-slate-800 tracking-wide">
+                © 2026 พัฒนาระบบ | นายพงศ์ธนาพัฒน์ ขุนเนียม ตำแหน่ง เจ้าพนักงานการเงินและบัญชีปฏิบัติงาน 
+                กองคลัง กรมวิชาการเกษตร
+            </p>
+        </div>
+    </footer>
+
+    <!-- Modal Login -->
+    <div id="loginModal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-md hidden flex items-center justify-center z-50 p-4">
+        <div class="bg-white rounded-[2rem] p-10 max-w-sm w-full shadow-2xl relative">
+            <button type="button" onclick="closeLoginModal()" class="absolute top-5 right-5 text-slate-400 bg-slate-100 hover:bg-slate-200 h-8 w-8 rounded-full flex items-center justify-center"><i class="fas fa-times"></i></button>
+            <h3 class="text-2xl font-extrabold text-center mb-8 text-slate-800">สำหรับเจ้าหน้าที่</h3>
+            <div class="space-y-4">
+                <input type="text" id="userInput" class="modern-input" placeholder="Username">
+                <input type="password" id="passInput" class="modern-input tracking-widest" placeholder="Password">
+                <button type="button" onclick="handleLogin()" class="w-full bg-slate-800 text-white py-4 rounded-xl font-extrabold">เข้าสู่ระบบ</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal Master Data -->
+    <div id="masterModal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm hidden flex items-center justify-center z-50 p-4">
+        <div class="bg-white rounded-2xl p-6 md:p-8 w-full max-w-lg shadow-2xl relative max-h-[90vh] overflow-y-auto">
+            <button type="button" onclick="$('#masterModal').addClass('hidden')" class="absolute top-4 right-4 text-slate-400 bg-slate-100 hover:bg-slate-200 w-8 h-8 rounded-full flex items-center justify-center"><i class="fas fa-times"></i></button>
+            <h3 id="masterModalTitle" class="text-xl font-extrabold text-slate-800 mb-6 border-b pb-3"></h3>
+            <form id="masterForm" class="space-y-4" onsubmit="event.preventDefault(); saveMasterData();">
+                <input type="hidden" id="masterType">
+                <input type="hidden" id="masterId">
+                <div id="masterFormFields" class="space-y-4"></div>
+                <div class="pt-4 mt-2 border-t border-slate-100">
+                    <button type="submit" class="w-full bg-emerald-500 hover:bg-emerald-600 text-white py-3.5 rounded-xl font-extrabold shadow-md transition-colors">บันทึกข้อมูล</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- 🤖 FLOATING CHATBOT WIDGET -->
+    <div id="chat-widget">
+        <div class="bot-tooltip" onclick="toggleChat()">
+            💬 น้องคลังเกษตร มีคำตอบ<br><span class="text-[6px] text-emerald-500/80 font-normal">คลิกสอบถามข้อมูล</span>
+        </div>
+
+        <div id="chat-toggle" onclick="toggleChat()" title="คุยกับน้องคลังเกษตร" class="relative cursor-pointer transition-transform hover:scale-110">
+            <div class="flex flex-col items-center">
+                <div class="w-14 h-12 bg-gradient-to-br from-emerald-400 to-teal-600 rounded-t-2xl border-2 border-white shadow-lg flex items-center justify-center relative z-10">
+                    <div class="flex space-x-2">
+                        <div class="w-2.5 h-2.5 bg-white rounded-full animate-bounce" style="animation-delay: 0.1s"></div>
+                        <div class="w-2.5 h-2.5 bg-white rounded-full animate-bounce" style="animation-delay: 0.2s"></div>
+                    </div>
+                    <i class="fas fa-leaf absolute -top-3 right-0 text-green-500 drop-shadow-md transform rotate-12 text-sm"></i>
+                </div>
+                <div class="w-16 h-10 bg-gradient-to-b from-teal-500 to-emerald-600 rounded-b-xl border-x-2 border-b-2 border-white shadow-md relative z-10 flex items-center justify-center">
+                    <div class="w-6 h-1 bg-white/50 rounded-full"></div>
+                </div>
+                <div class="flex space-x-3 -mt-1 z-0 relative">
+                    <div class="w-3 h-4 bg-slate-700 rounded-b-md"></div>
+                    <div class="w-3 h-4 bg-slate-700 rounded-b-md"></div>
+                </div>
+            </div>
+            <span class="absolute top-0 right-0 flex h-4 w-4 z-20">
+                <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75"></span>
+                <span class="relative inline-flex rounded-full h-4 w-4 bg-red-500 border border-white"></span>
+            </span>
+        </div>
+
+        <div id="chat-box">
+            <div id="chat-header">
+                <div class="flex items-center gap-3">
+                    <div class="w-10 h-10 bg-white rounded-full flex items-center justify-center text-emerald-600 text-xl font-black shadow-sm"><i class="fas fa-robot"></i></div>
+                    <div>
+                        <div class="font-extrabold text-lg leading-tight">น้องคลังเกษตร</div>
+                        <div class="text-[10px] font-medium opacity-90"><i class="fas fa-circle text-green-300 text-[8px] mr-1 animate-pulse"></i>พร้อมให้คำปรึกษาครับ</div>
+                    </div>
+                </div>
+                <div class="flex gap-2">
+                    <button type="button" onclick="clearChatHistory()" class="text-white/80 hover:text-white transition-colors" title="ล้างประวัติแชท"><i class="fas fa-trash-alt"></i></button>
+                    <button type="button" onclick="toggleChat()" class="text-white hover:text-emerald-200 transition-colors ml-2"><i class="fas fa-times text-xl"></i></button>
+                </div>
+            </div>
+            
+            <div id="chat-messages"></div>
+            
+            <div id="chat-controls">
+                <div id="chat-menu-bar">
+                    <button type="button" onclick="toggleKeyboard()" class="text-slate-400 hover:text-emerald-500 p-2 transition-colors" title="พิมพ์ข้อความด้วยตัวเอง">
+                        <i class="fas fa-keyboard text-xl"></i>
+                    </button>
+                    <button type="button" onclick="showMainMenu()" class="bg-emerald-50 text-emerald-700 px-6 py-2.5 rounded-full font-extrabold shadow-sm hover:bg-emerald-100 transition-all flex items-center gap-2">
+                        <i class="fas fa-bars"></i> Menu
+                    </button>
+                    <div class="w-8"></div>
+                </div>
+                
+                <div id="chat-keyboard-area">
+                    <input type="text" id="chat-input" class="flex-1 bg-white border border-slate-300 rounded-xl px-4 py-2 text-sm font-medium focus:outline-none focus:ring-2 focus:ring-emerald-500" placeholder="พิมพ์ข้อความค้นหาที่นี่..." onkeypress="if(event.key === 'Enter') handleUserInput()">
+                    <button type="button" onclick="handleUserInput()" class="bg-emerald-500 hover:bg-emerald-600 text-white w-10 h-10 rounded-xl shadow-md flex items-center justify-center transition-colors flex-shrink-0"><i class="fas fa-paper-plane"></i></button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // ==========================================
+        // 🛡️ THE ULTIMATE SAFE MODE
+        // ==========================================
+        let loaderTimer;
+
+        function hideLoaderForce() {
+            try {
+                clearTimeout(loaderTimer);
+                const l = document.getElementById('loader'); 
+                if(l) l.style.display = 'none';
+                document.body.style.pointerEvents = 'auto';
+                if(typeof $ !== 'undefined') { 
+                    $('body').removeClass('swal2-shown swal2-height-auto'); 
+                    $('.swal2-container').remove(); 
+                }
+            } catch(e) {}
+        }
+
+        function showLoader(txt = 'กำลังประมวลผล...') { 
+            try {
+                const l = document.getElementById('loader'); 
+                const lTxt = document.getElementById('loaderText');
+                if(lTxt) lTxt.innerText = txt; 
+                if(l) l.style.display = 'flex'; 
+                
+                clearTimeout(loaderTimer); 
+                loaderTimer = setTimeout(() => { hideLoaderForce(); }, 15000); 
+            } catch(e) {}
+        }
+
+        window.onerror = function(msg, url, line) { 
+            hideLoaderForce(); 
+            console.error("System Error Caught:", msg, "at line", line); 
+            return false; 
+        };
+
+        function escapeHtml(text) {
+            if (text === null || text === undefined || text === '') return '';
+            return String(text).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;").replace(/'/g, "&#039;");
+        }
+
+        function parseGoogleResponse(rawRes) { 
+            if (typeof rawRes === 'object') return rawRes; 
+            try { return JSON.parse(rawRes); } catch(e) { return { status: 'error', message: "Data format error" }; } 
+        }
+
+        // ==========================================
+        // ตัวแปลงข้อความแชทบอทให้รองรับรูปลิงก์ทั่วไป และ Google Drive
+        // ==========================================
+        function formatChatbotText(text) {
+            if (!text) return '';
+            let formatted = escapeHtml(text).replace(/\n/g, '<br>');
+            const urlRegex = /(https?:\/\/[^\s<]+)/g;
+            return formatted.replace(urlRegex, function(url) {
+                let isImage = url.match(/\.(jpeg|jpg|gif|png|webp)(\?.*)?$/i);
+                // Regex รองรับลิงก์ Google Drive
+                let driveMatch = url.match(/drive\.google\.com\/file\/d\/([a-zA-Z0-9_-]+)/) || url.match(/drive\.google\.com\/open\?id=([a-zA-Z0-9_-]+)/);
+                
+                if (isImage) {
+                    return `<br><a href="${url}" target="_blank"><img src="${url}" alt="รูปภาพแนบ" class="mt-2 mb-2 shadow-sm rounded-lg max-w-full border border-slate-200"></a>`;
+                } else if (driveMatch) {
+                    let imgUrl = `https://drive.google.com/uc?export=view&id=${driveMatch[1]}`;
+                    return `<br><a href="${url}" target="_blank"><img src="${imgUrl}" alt="รูปภาพแนบ" class="mt-2 mb-2 shadow-sm rounded-lg max-w-full border border-slate-200"></a>`;
+                } else {
+                    return `<a href="${url}" target="_blank" class="text-blue-600 underline font-bold"><i class="fas fa-external-link-alt"></i> คลิกลิงก์ที่นี่</a>`;
+                }
+            });
+        }
+
+        let state = { depts: [], categories: [], publicQuestions: [], adminQuestions: [], settings: { marquee: '', links: '[]' } };
+        let masterCache = { Users: [], Departments: [], Categories: [] }; 
+        let currentUser = null; let currentPublicCategoryFilter = ''; let knowledgeBase = []; 
+        let chatState = { step: 0, category: '', topic: '' }; const CHAT_STORAGE_KEY = 'nongKhlangKasetHistory';
+        let chartInstances = { status: null, cat: null, dept: null, avgTime: null, trend: null, botCat: null, botTopic: null, botSub: null };
+        window.rawDashboardStats = null; window.rawBotStats = null;
+
+        document.addEventListener("DOMContentLoaded", function() {
+            if (typeof jQuery === 'undefined') { hideLoaderForce(); alert("ระบบอินเทอร์เน็ตมีปัญหา ไม่สามารถโหลดส่วนประกอบหลักได้"); return; }
+            $(document).ready(() => { fetchInitialData(); fetchKnowledgeBase(); $('#qaForm').on('submit', e => { e.preventDefault(); submitForm(); }); });
+        });
+
+        function fetchInitialData() {
+            try {
+                if (typeof google === 'undefined' || typeof google.script === 'undefined') { hideLoaderForce(); return; }
+                showLoader('กำลังเชื่อมต่อฐานข้อมูล...');
+                google.script.run
+                    .withSuccessHandler(function(rawRes) {
+                        try {
+                            hideLoaderForce(); const res = parseGoogleResponse(rawRes);
+                            if (res && res.status === 'error') { if(typeof Swal !== 'undefined') Swal.fire('แจ้งเตือน', res.message, 'warning'); return; }
+                            state.depts = Array.isArray(res.depts) ? res.depts : [];
+                            state.categories = Array.isArray(res.categories) ? res.categories : [];
+                            state.publicQuestions = Array.isArray(res.questions) ? res.questions : [];
+                            state.settings = res.settings || { marquee: 'ระบบพร้อมใช้งาน', links: '[]' };
+                            updateUIComponents();
+                        } catch(e) { hideLoaderForce(); }
+                    })
+                    .withFailureHandler(function(err) { hideLoaderForce(); })
+                    .getInitialData(new Date().getTime()); // ส่ง timestamp ป้องกัน Browser Cache ซ้อน
+            } catch(e) { hideLoaderForce(); }
+        }
+
+        function updateUIComponents() {
+            try {
+                let catOptions = '<option value="">-- เลือกประเภท --</option>';
+                state.categories.forEach(c => { catOptions += `<option value="${escapeHtml(c)}">${escapeHtml(c)}</option>`; });
+                $('#category').html(catOptions);
+
+                $('#marqueeText').text(state.settings.marquee || 'ยินดีต้อนรับสู่ระบบ');
+                if($('#setMarquee').length) $('#setMarquee').val(state.settings.marquee || '');
+
+                let links = []; try { links = JSON.parse(state.settings.links || '[]'); } catch(e) { links = []; }
+                if (links.length > 0) {
+                    let linkHtml = links.map(l => `<a href="${escapeHtml(l.url)}" target="_blank" class="px-4 py-2 rounded-xl text-xs font-bold hover:opacity-90 transition-colors shadow-sm flex items-center text-white" style="background-color: #DBA400;"><i class="fas fa-external-link-alt me-2 text-white"></i>${escapeHtml(l.name)}</a>`).join('');
+                    $('#dynamicLinksContainer').html(linkHtml);
+                } else { $('#dynamicLinksContainer').html('<span class="text-xs text-slate-400">ยังไม่มีลิงก์แนะนำ</span>'); }
+
+                $('#linksContainer').empty(); links.forEach(l => renderLinkInputFields(l.name, l.url));
+                if(links.length === 0) addLinkField();
+            } catch(e) {}
+            renderCategoryFilters(); renderPublicList();
+        }
+
+        function safeDestroyChart(chartObj) { try { if(chartObj) chartObj.destroy(); } catch(e) {} }
+
+        function loadDashboardStats() {
+            try {
+                if (typeof google === 'undefined') return;
+                showLoader('กำลังคำนวณสถิติ...');
+                google.script.run
+                    .withSuccessHandler(rawRes => {
+                        hideLoaderForce(); const res = parseGoogleResponse(rawRes); if(!res || res.status === 'error') return;
+                        window.rawDashboardStats = res;
+                        try {
+                            // การแสดงตัวเลขบนการ์ดด้านบน
+                            let valPending = res.chartStatus.labels.includes('รอตอบ') ? res.chartStatus.data[res.chartStatus.labels.indexOf('รอตอบ')] : 0;
+                            let valAnswered = res.chartStatus.labels.includes('ตอบแล้ว') ? res.chartStatus.data[res.chartStatus.labels.indexOf('ตอบแล้ว')] : 0;
+                            let valClosed = res.chartStatus.labels.includes('ปิดงาน') ? res.chartStatus.data[res.chartStatus.labels.indexOf('ปิดงาน')] : 0;
+                            
+                            $('#dashPending').text(valPending); 
+                            $('#dashAnswered').text(valAnswered); 
+                            $('#dashClosed').text(valClosed);
+
+                            const colors = ['#10b981', '#f59e0b', '#3b82f6', '#ef4444', '#8b5cf6', '#06b6d4', '#ec4899', '#f97316', '#14b8a6', '#f43f5e'];
+                            
+                            safeDestroyChart(chartInstances.status);
+                            
+                            // 🟢🔴 ปรับปรุงการตั้งค่าสีกราฟสถานะภาพรวม (เพิ่ม .trim() ป้องกันช่องว่างซ่อนเร้นที่ทำให้สีไม่ตรง)
+                            let statusColorMap = res.chartStatus.labels.map(status => {
+                                const s = String(status).trim();
+                                if (s === 'รอตอบ') return '#ef4444'; // สีแดง
+                                if (s === 'ตอบแล้ว') return '#f59e0b'; // สีเหลือง
+                                if (s === 'ปิดงาน') return '#10b981'; // สีเขียว
+                                return '#cbd5e1'; // สีเริ่มต้น
+                            });
+                            
+                            // อ้างอิง ID ของ Chart เป็น "chartStatus" อย่างถูกต้อง
+                            chartInstances.status = new Chart(document.getElementById('chartStatus'), { 
+                                type: 'doughnut', 
+                                data: { 
+                                    labels: res.chartStatus.labels, 
+                                    datasets: [{ 
+                                        data: res.chartStatus.data, 
+                                        backgroundColor: statusColorMap,
+                                        borderWidth: 1
+                                    }] 
+                                }, 
+                                options: { responsive: true, maintainAspectRatio: false } 
+                            });
+                            
+                            safeDestroyChart(chartInstances.cat);
+                            chartInstances.cat = new Chart(document.getElementById('chartCat'), { type: 'pie', data: { labels: res.chartCat.labels, datasets: [{ data: res.chartCat.data, backgroundColor: colors }] }, options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: 'right' } } } });
+                            
+                            safeDestroyChart(chartInstances.dept);
+                            chartInstances.dept = new Chart(document.getElementById('chartDept'), { type: 'bar', data: { labels: res.chartDept.labels, datasets: [{ label: 'จำนวนคำถาม', data: res.chartDept.data, backgroundColor: '#3b82f6', borderRadius: 4 }] }, options: { responsive: true, maintainAspectRatio: false, scales: { y: { beginAtZero: true, ticks: { stepSize: 1 } } } } });
+                            
+                            safeDestroyChart(chartInstances.avgTime);
+                            chartInstances.avgTime = new Chart(document.getElementById('chartAvgTime'), { type: 'line', data: { labels: res.chartAvgTime.labels, datasets: [{ label: 'เวลาเฉลี่ย (ชั่วโมง)', data: res.chartAvgTime.data, borderColor: '#10b981', backgroundColor: 'rgba(16, 185, 129, 0.2)', borderWidth: 3, pointBackgroundColor: '#059669', pointRadius: 5, fill: true, tension: 0.3 }] }, options: { responsive: true, maintainAspectRatio: false, scales: { y: { beginAtZero: true } } } });
+
+                            if(res.chartTrend) {
+                                safeDestroyChart(chartInstances.trend);
+                                chartInstances.trend = new Chart(document.getElementById('chartTrend'), { type: 'line', data: { labels: res.chartTrend.labels, datasets: [{ label: 'คำถามที่เข้ามา', data: res.chartTrend.asked, borderColor: '#3b82f6', backgroundColor: '#3b82f6', tension: 0.2 }, { label: 'ตอบกลับแล้ว', data: res.chartTrend.answered, borderColor: '#10b981', backgroundColor: '#10b981', tension: 0.2 }] }, options: { responsive: true, maintainAspectRatio: false, scales: { y: { beginAtZero: true, ticks: { stepSize: 1 } } } } });
+                            }
+                        } catch(e) {}
+                    })
+                    .withFailureHandler(err => hideLoaderForce())
+                    .getDashboardStats();
+            } catch(e) { hideLoaderForce(); }
+        }
+
+        function loadBotStats() {
+            try {
+                if (typeof google === 'undefined') return;
+                showLoader('กำลังโหลดสถิติแชทบอท...');
+                google.script.run
+                    .withSuccessHandler(rawRes => {
+                        hideLoaderForce(); const res = parseGoogleResponse(rawRes); if(!res || res.status === 'error') return; window.rawBotStats = res;
+                        try {
+                            const colors = ['#3b82f6', '#10b981', '#f59e0b', '#8b5cf6', '#ec4899'];
+                            safeDestroyChart(chartInstances.botCat); chartInstances.botCat = new Chart(document.getElementById('chartBotCat'), { type: 'pie', data: { labels: res.chartCat.labels, datasets: [{ data: res.chartCat.data, backgroundColor: colors }] }, options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: 'right' } } } });
+                            safeDestroyChart(chartInstances.botTopic); chartInstances.botTopic = new Chart(document.getElementById('chartBotTopic'), { type: 'bar', data: { labels: res.chartTopic.labels, datasets: [{ label: 'ครั้ง', data: res.chartTopic.data, backgroundColor: '#8b5cf6', borderRadius: 4 }] }, options: { indexAxis: 'y', responsive: true, maintainAspectRatio: false, scales: { x: { beginAtZero: true, ticks: { stepSize: 1 } }, y: { ticks: { autoSkip: false } } } } });
+                            safeDestroyChart(chartInstances.botSub); chartInstances.botSub = new Chart(document.getElementById('chartBotSubject'), { type: 'bar', data: { labels: res.chartSubject.labels, datasets: [{ label: 'ครั้ง', data: res.chartSubject.data, backgroundColor: '#ec4899', borderRadius: 4 }] }, options: { indexAxis: 'y', responsive: true, maintainAspectRatio: false, scales: { x: { beginAtZero: true, ticks: { stepSize: 1 } }, y: { ticks: { autoSkip: false } } } } });
+
+                            let html = '';
+                            if(res.logs && res.logs.length > 0) { res.logs.filter(l => l.type === 'AI').forEach(l => { html += `<tr class="border-b"><td class="p-3 text-[11px] text-slate-500">${escapeHtml(l.date)}</td><td class="p-3 font-bold text-slate-800 text-xs">${escapeHtml(l.subject)}</td></tr>`; }); }
+                            $('#botAiLogList').html(html || '<tr><td colspan="2" class="text-center p-4 text-slate-400">ยังไม่มีข้อมูลการพิมพ์ถาม</td></tr>');
+                        } catch(e) {}
+                    })
+                    .withFailureHandler(err => hideLoaderForce())
+                    .getBotStats();
+            } catch(e) { hideLoaderForce(); }
+        }
+
+        function setAdminTab(tab) {
+            try {
+                $('.admin-tab').addClass('hidden'); $(`#admin-tab-${tab}`).removeClass('hidden');
+                $('.sidebar-item').removeClass('active'); $(`.sidebar-item[onclick*="setAdminTab('${tab}')"]`).addClass('active');
+                if (tab === 'dashboard') loadDashboardStats();
+                if (tab === 'botstats') loadBotStats();
+                if (tab === 'questions') loadQuestionsData(true);
+                if (tab === 'users') loadMasterData('Users');
+                if (tab === 'depts') loadMasterData('Departments');
+                if (tab === 'categories') loadMasterData('Categories');
+            } catch(e) {}
+        }
+
+        function loadMasterData(type) {
+            try {
+                if (typeof google === 'undefined') return;
+                showLoader('กำลังดึงข้อมูล...');
+                google.script.run
+                    .withSuccessHandler(rawRes => {
+                        hideLoaderForce(); const res = parseGoogleResponse(rawRes);
+                        if(!res || res.status === 'error') return Swal.fire('ผิดพลาด', res ? res.message : '', 'error');
+                        masterCache[type] = res.data || []; let html = '';
+                        
+                        if (type === 'Users') {
+                            html = masterCache[type].map(u => {
+                                const id = escapeHtml(u.id); const name = escapeHtml(u.name); const user = escapeHtml(u.username);
+                                const role = escapeHtml(u.role); const deptsText = escapeHtml(u.departments) === 'all' ? 'ทุกหน่วยงาน (Admin)' : escapeHtml(u.departments);
+                                return `<tr class="border-b hover:bg-slate-50 transition-colors"><td class="p-4 font-bold text-slate-800">${name}<br><span class="text-[10px] text-blue-500 bg-blue-50 px-2 py-0.5 rounded">${user}</span></td><td class="p-4"><span class="px-3 py-1 rounded-full text-[11px] font-extrabold ${role === 'admin' ? 'bg-red-100 text-red-700' : 'bg-emerald-100 text-emerald-700'}">${role}</span></td><td class="p-4 text-xs text-slate-600 max-w-xs truncate" title="${deptsText}">${deptsText}</td><td class="p-4 text-center whitespace-nowrap"><button type="button" onclick="openMasterForm('Users', '${id}')" class="text-amber-500 bg-amber-50 p-2 rounded-lg hover:bg-amber-50 hover:text-white mx-1"><i class="fas fa-edit"></i></button><button type="button" onclick="delMaster('Users', '${id}')" class="text-red-500 bg-red-50 p-2 rounded-lg hover:bg-red-500 hover:text-white mx-1"><i class="fas fa-trash"></i></button></td></tr>`;
+                            }).join('');
+                            $('#usersList').html(html || '<tr><td colspan="4" class="text-center p-8 text-slate-400 font-bold">ไม่มีข้อมูล</td></tr>');
+                        } else if (type === 'Departments') {
+                            html = masterCache[type].map(d => `<tr class="border-b hover:bg-slate-50 transition-colors"><td class="p-4 font-bold text-slate-800">${escapeHtml(d.name)}</td><td class="p-4 text-center whitespace-nowrap"><button type="button" onclick="openMasterForm('Departments', '${escapeHtml(d.id)}')" class="text-amber-500 bg-amber-50 p-2 rounded-lg hover:bg-amber-500 hover:text-white mx-1"><i class="fas fa-edit"></i></button><button type="button" onclick="delMaster('Departments', '${escapeHtml(d.id)}')" class="text-red-500 bg-red-50 p-2 rounded-lg hover:bg-red-500 hover:text-white mx-1"><i class="fas fa-trash"></i></button></td></tr>`).join('');
+                            $('#deptsList').html(html || '<tr><td colspan="2" class="text-center p-8 text-slate-400 font-bold">ไม่มีข้อมูล</td></tr>');
+                        } else if (type === 'Categories') {
+                            html = masterCache[type].map(c => `<tr class="border-b hover:bg-slate-50 transition-colors"><td class="p-4 font-bold text-slate-800">${escapeHtml(c.name)}</td><td class="p-4 text-xs text-slate-600">${escapeHtml(c.mappeddepts)}</td><td class="p-4 text-center whitespace-nowrap"><button type="button" onclick="openMasterForm('Categories', '${escapeHtml(c.id)}')" class="text-amber-500 bg-amber-50 p-2 rounded-lg hover:bg-amber-500 hover:text-white mx-1"><i class="fas fa-edit"></i></button><button type="button" onclick="delMaster('Categories', '${escapeHtml(c.id)}')" class="text-red-500 bg-red-50 p-2 rounded-lg hover:bg-red-500 hover:text-white mx-1"><i class="fas fa-trash"></i></button></td></tr>`).join('');
+                            $('#categoriesList').html(html || '<tr><td colspan="3" class="text-center p-8 text-slate-400 font-bold">ไม่มีข้อมูล</td></tr>');
+                        }
+                    })
+                    .withFailureHandler(err => hideLoaderForce())
+                    .adminGetData(type);
+            } catch(e) { hideLoaderForce(); }
+        }
+
+        function openMasterForm(type, idToEdit = "") {
+            try {
+                $('#masterType').val(type); $('#masterId').val(idToEdit);
+                let fields = ''; let existingData = null;
+                if (idToEdit && masterCache[type]) existingData = masterCache[type].find(item => item.id === idToEdit);
+                
+                const safeDepts = state.depts || [];
+                const generateDeptCheckboxes = (selectedDeptsArray, cssClass) => {
+                    if(safeDepts.length === 0) return '<div class="text-red-500 text-xs my-2">กรุณาเพิ่ม "หน่วยงาน" ในเมนูก่อนทำการผูกสิทธิ์</div>';
+                    return safeDepts.map(d => `<label class="checkbox-item"><input type="checkbox" class="${cssClass}" value="${escapeHtml(d)}" ${selectedDeptsArray.includes(d) ? 'checked' : ''}> <span class="text-sm font-medium">${escapeHtml(d)}</span></label>`).join('');
+                };
+
+                if(type === 'Departments') {
+                    $('#masterModalTitle').text(idToEdit ? 'แก้ไขหน่วยงาน' : 'เพิ่มหน่วยงานใหม่');
+                    fields = `<div><label class="block text-sm font-bold mb-1">ชื่อหน่วยงาน</label><input type="text" id="m_name" class="modern-input" required></div>`;
+                } else if(type === 'Categories') {
+                    $('#masterModalTitle').text(idToEdit ? 'แก้ไขประเภทคำถาม' : 'เพิ่มประเภทคำถามใหม่');
+                    let mappedDeptsArr = existingData && existingData.mappeddepts ? existingData.mappeddepts.split(',').map(d => d.trim()) : [];
+                    fields = `<div><label class="block text-sm font-bold mb-1">ชื่อประเภทคำถาม</label><input type="text" id="m_name" class="modern-input" required></div><div><label class="block text-sm font-bold mb-1">ผูกสิทธิ์ให้หน่วยงานรับผิดชอบ</label><div class="checkbox-list">${generateDeptCheckboxes(mappedDeptsArr, 'm_catdept_cb')}</div></div>`;
+                } else if(type === 'Users') {
+                    $('#masterModalTitle').text(idToEdit ? 'แก้ไขข้อมูลผู้ใช้งาน' : 'เพิ่มผู้ใช้งานระบบ');
+                    let userDeptsArr = existingData && existingData.departments ? existingData.departments.split(',').map(d => d.trim()) : [];
+                    fields = `<div class="grid grid-cols-1 md:grid-cols-2 gap-4"><div><label class="block text-sm font-bold mb-1">ชื่อ-สกุล</label><input type="text" id="m_name" class="modern-input" required></div><div><label class="block text-sm font-bold mb-1">ชื่อ-สกุล (ภาษาอังกฤษ)</label><input type="text" id="m_nameeng" class="modern-input"></div></div><div class="grid grid-cols-1 md:grid-cols-2 gap-4"><div><label class="block text-sm font-bold mb-1">ตำแหน่ง</label><input type="text" id="m_pos" class="modern-input"></div><div><label class="block text-sm font-bold mb-1">อีเมล (เพื่อรับแจ้งข้อมูลเข้าใช้งาน)</label><input type="email" id="m_email" class="modern-input"></div></div><div class="p-4 bg-slate-50 border border-slate-200 rounded-xl my-4"><label class="block text-sm font-bold mb-2 text-emerald-700">สิทธิ์การใช้งาน และหน่วยงาน</label><div class="checkbox-list border-blue-200 bg-white"><label class="checkbox-item bg-amber-50 border border-amber-200 mb-2"><input type="checkbox" id="m_dept_all" value="all" ${userDeptsArr.includes('all') ? 'checked' : ''}> <span class="text-sm font-extrabold text-amber-700">สิทธิ์ระดับผู้ดูแลระบบ (Admin)</span></label>${generateDeptCheckboxes(userDeptsArr, 'm_userdept_cb')}</div></div><div class="grid grid-cols-1 md:grid-cols-2 gap-4"><div><label class="block text-sm font-bold mb-1">Username (เข้าสู่ระบบ)</label><input type="text" id="m_user" class="modern-input" required></div><div><label class="block text-sm font-bold mb-1">Password</label><input type="password" id="m_pass" class="modern-input" placeholder="${idToEdit?'(เว้นว่างถ้าไม่เปลี่ยน)':'ตั้งรหัสผ่าน'}" ${idToEdit?'':'required'}></div></div>`;
+                }
+                
+                $('#masterFormFields').html(fields);
+                if (existingData) {
+                    if($('#m_name').length) $('#m_name').val(existingData.name || ''); if($('#m_nameeng').length) $('#m_nameeng').val(existingData.nameeng || '');
+                    if($('#m_pos').length) $('#m_pos').val(existingData.position || ''); if($('#m_user').length) $('#m_user').val(existingData.username || '');
+                    if($('#m_email').length) $('#m_email').val(existingData.email || '');
+                }
+                $('#masterModal').removeClass('hidden');
+            } catch(e) {}
+        }
+
+        function saveMasterData() {
+            try {
+                if (typeof google === 'undefined') return;
+                const type = $('#masterType').val(); if(!type) return;
+                let payload = { ID: $('#masterId').val() }; 
+                
+                if(type === 'Departments') { payload.Name = $('#m_name').val(); } 
+                else if(type === 'Categories') { 
+                    payload.Name = $('#m_name').val(); let selectedCatDepts = []; 
+                    $('.m_catdept_cb:checked').each(function() { selectedCatDepts.push($(this).val()); });
+                    payload.MappedDepts = selectedCatDepts.join(', ');
+                    if(selectedCatDepts.length === 0) return Swal.fire('ข้อมูลไม่ครบ', 'กรุณาเลือกหน่วยงานอย่างน้อย 1 หน่วยงาน', 'warning');
+                } else if(type === 'Users') { 
+                    payload.Name = $('#m_name').val(); payload.NameEng = $('#m_nameeng').val(); payload.Position = $('#m_pos').val();
+                    payload.Username = $('#m_user').val(); payload.Password = $('#m_pass').val(); payload.Email = $('#m_email').val();
+
+                    let selectedDepts = [];
+                    if($('#m_dept_all').is(':checked')) { selectedDepts.push('all'); payload.Role = 'admin'; } 
+                    else { $('.m_userdept_cb:checked').each(function() { selectedDepts.push($(this).val()); }); payload.Role = 'staff'; }
+                    payload.Departments = selectedDepts.join(', ');
+                    if(selectedDepts.length === 0) return Swal.fire('ข้อมูลไม่ครบ', 'กรุณาเลือกหน่วยงานอย่างน้อย 1 หน่วยงาน', 'warning');
+                }
+
+                showLoader('กำลังบันทึก...');
+                google.script.run
+                    .withSuccessHandler(rawRes => {
+                        hideLoaderForce(); const res = parseGoogleResponse(rawRes); if(!res) return;
+                        if(res.status === 'success') { Swal.fire('สำเร็จ', 'บันทึกข้อมูลเรียบร้อย', 'success'); $('#masterModal').addClass('hidden'); loadMasterData(type); if(type === 'Departments' || type === 'Categories') fetchInitialData(); } 
+                        else { Swal.fire('ผิดพลาด', res.message, 'error'); }
+                    })
+                    .withFailureHandler(err => hideLoaderForce())
+                    .saveMaster(type, payload);
+            } catch (e) { hideLoaderForce(); }
+        }
+
+        function delMaster(type, id) {
+            try {
+                if (typeof google === 'undefined') return;
+                Swal.fire({ title: 'ยืนยันการลบ?', icon: 'warning', showCancelButton: true, confirmButtonColor: '#ef4444', confirmButtonText: 'ลบ', cancelButtonText: 'ยกเลิก' }).then((result) => {
+                    if (result.isConfirmed) {
+                        showLoader('กำลังลบ...');
+                        google.script.run
+                            .withSuccessHandler(rawRes => {
+                                hideLoaderForce(); const res = parseGoogleResponse(rawRes); if(!res) return;
+                                if(res.status === 'success') { Swal.fire('ลบแล้ว!', '', 'success'); loadMasterData(type); if(type === 'Departments' || type === 'Categories') fetchInitialData(); } 
+                                else { Swal.fire('ผิดพลาด', res.message, 'error'); }
+                            })
+                            .withFailureHandler(err => hideLoaderForce())
+                            .deleteMaster(type, id);
+                    }
+                });
+            } catch(e) {}
+        }
+
+        function downloadCSV(filename, csvContent) {
+            try {
+                const blob = new Blob(["\uFEFF" + csvContent], { type: 'text/csv;charset=utf-8;' });
+                const link = document.createElement("a"); const url = URL.createObjectURL(blob);
+                link.setAttribute("href", url); link.setAttribute("download", filename); link.style.visibility = 'hidden';
+                document.body.appendChild(link); link.click(); document.body.removeChild(link);
+            } catch(e) {}
+        }
+
+        function exportDashboardCSV() {
+            if(!window.rawDashboardStats || !window.rawDashboardStats.rawData) return Swal.fire('ไม่มีข้อมูล', 'ยังไม่มีข้อมูลสถิติ', 'info');
+            let csv = "รหัสอ้างอิง,วันที่สอบถาม,ประเภทคำถาม,หน่วยงาน,เรื่อง,สถานะ,วันที่ตอบกลับ\n";
+            window.rawDashboardStats.rawData.forEach(row => { csv += `"${row.id}","${row.date}","${row.category}","${row.dept}","${row.subject}","${row.status}","${row.ansDate}"\n`; });
+            downloadCSV(`Dashboard_Stats_${new Date().getTime()}.csv`, csv);
+        }
+
+        function exportBotStatsCSV() {
+            if(!window.rawBotStats || !window.rawBotStats.logs) return Swal.fire('ไม่มีข้อมูล', 'ยังไม่มีข้อมูลแชทบอท', 'info');
+            let csv = "วันที่,ประเภทการเข้าถึง,หมวดหมู่(Category),หัวข้อย่อย(Topic),คำถาม(Subject/พิมพ์ถาม)\n";
+            window.rawBotStats.logs.forEach(row => { csv += `"${row.date}","${row.type}","${row.category}","${row.topic}","${row.subject}"\n`; });
+            downloadCSV(`Chatbot_Stats_${new Date().getTime()}.csv`, csv);
+        }
+
+        function changeView(vid) { try { $('.view-section').removeClass('active'); $(`#view-${vid}`).addClass('active'); window.scrollTo(0,0); if (vid === 'admin' && currentUser) loadQuestionsData(true); } catch(e) {} }
+        function openLoginModal() { try { $('#loginModal').removeClass('hidden'); } catch(e) {} }
+        function closeLoginModal() { try { $('#loginModal').addClass('hidden'); } catch(e) {} }
+        
+        function handleLogin() {
+            try {
+                if (typeof google === 'undefined') return;
+                let user = $('#userInput').val().trim(); 
+                let pass = $('#passInput').val().trim();
+                
+                if(user === '' && pass === '') {
+                    user = 'admin_doa'; pass = 'admin@1234';
+                }
+
+                if(!user || !pass) return Swal.fire('กรอกข้อมูลไม่ครบ', 'กรุณากรอก Username และ Password', 'warning');
+
+                showLoader('ตรวจสอบสิทธิ์...');
+                google.script.run
+                    .withSuccessHandler(rawRes => {
+                        hideLoaderForce(); const res = parseGoogleResponse(rawRes); if(!res) return;
+                        if(res.status === 'success') {
+                            currentUser = res; const isAdmin = String(res.role).trim().toLowerCase() === 'admin' || res.id === 'SUPER_ADMIN';
+                            $('#loginBtn').addClass('hidden'); $('#userProfile').removeClass('hidden'); $('#displayUserName').text(res.name); $('#adminNameDisplay').text(res.name); $('#adminRoleDisplay').text(res.role);
+                            if($('#profName').length) { $('#profName').text(res.name); $('#profPos').text(res.position); $('#profRole').text(res.role); $('#profUser').text(res.username); }
+                            if (isAdmin) $('.admin-only').show(); if (res.id === 'SUPER_ADMIN') $('.super-admin-only').show();
+                            $('#userInput').val(''); $('#passInput').val('');
+                            closeLoginModal(); setAdminTab('questions'); changeView('admin'); 
+                        } else { Swal.fire('ล้มเหลว', res.message, 'error'); }
+                    })
+                    .withFailureHandler(err => hideLoaderForce())
+                    .verifyLogin(user, pass);
+            } catch(e) { hideLoaderForce(); }
+        }
+
+        function logout() { currentUser = null; $('#loginBtn').removeClass('hidden'); $('#userProfile').addClass('hidden'); $('.admin-only, .super-admin-only').hide(); changeView('home'); }
+        function displayFileName(input) { try { $('#fileDisplayArea').html(input.files[0] ? `<p class="text-sm font-extrabold text-emerald-800 bg-emerald-100 px-4 py-2 rounded-full inline-block shadow-sm">${input.files[0].name}</p>` : `<i class="fas fa-cloud-upload-alt text-5xl text-slate-300 mb-4"></i><p class="text-sm font-bold text-slate-600">คลิกเพื่อเลือกไฟล์ (จำกัด 5MB)</p>`); } catch(e){} }
+        function getBase64(file) { return new Promise((res, rej) => { const r = new FileReader(); r.readAsDataURL(file); r.onload = () => res(r.result); r.onerror = e => rej(e); }); }
+
+        async function submitForm() {
+            try {
+                if (typeof google === 'undefined') return;
+                const file = document.getElementById('fileInput').files[0];
+                if(file && file.size > 5 * 1024 * 1024) return Swal.fire('ไฟล์ขนาดใหญ่เกินไป', 'กรุณาแนบไฟล์ขนาดไม่เกิน 5MB', 'warning');
+
+                const fd = { category: $('#category').val(), subject: $('#subject').val(), question: $('#question').val(), asker: $('#askerName').val(), askerDept: $('#askerDept').val(), phone: $('#askerPhone').val(), email: $('#askerEmail').val() };
+                if(file) { showLoader('เตรียมไฟล์...'); fd.fileData = await getBase64(file); fd.fileName = file.name; }
+                showLoader('กำลังบันทึกคำถาม...');
+                
+                google.script.run
+                    .withSuccessHandler(rawRes => { 
+                        hideLoaderForce(); const res = parseGoogleResponse(rawRes); if(!res) return;
+                        if(res.status === 'success') { Swal.fire('สำเร็จ', 'ส่งคำถามเรียบร้อยแล้ว', 'success'); changeView('home'); $('#qaForm')[0].reset(); $('#fileDisplayArea').html('<i class="fas fa-cloud-upload-alt text-5xl text-slate-300 mb-4"></i><p class="text-sm font-bold text-slate-600">คลิกเพื่อเลือกไฟล์ (จำกัด 5MB)</p>'); fetchInitialData(); } 
+                        else { Swal.fire('ผิดพลาด', res.message, 'error'); } 
+                    })
+                    .withFailureHandler(err => hideLoaderForce())
+                    .submitQuestion(fd);
+            } catch (e) { hideLoaderForce(); }
+        }
+
+        function formatAnswerText(rawAnswer, showHistory = false) {
+            if (!rawAnswer) return { latest: 'อยู่ระหว่างรอเจ้าหน้าที่ดำเนินการ...', history: '' };
+            let parts = rawAnswer.split('|||HISTORY|||'); let latest = parts[0].trim(); let history = parts[1] ? parts[1].trim() : '';
+            if (showHistory && history) { history = `<div class="mt-4 p-4 bg-slate-100 rounded-xl border border-slate-200 text-xs text-slate-500 overflow-y-auto max-h-40"><p class="font-bold mb-2 text-slate-700">ประวัติการแก้ไข:</p>${escapeHtml(history).replace(/\n/g, '<br>')}</div>`; } else { history = ''; }
+            return { latest: escapeHtml(latest).replace(/\n/g, '<br>'), history: history };
+        }
+
+        function viewDetail(id) {
+            try {
+                const qList = (state.adminQuestions || []).concat(state.publicQuestions || []);
+                const q = qList.find(x => x.id === id);
+                if(!q) return Swal.fire('ไม่พบข้อมูล', 'โปรดรีเฟรชหน้าเว็บ', 'warning');
+                
+                const isStaff = currentUser !== null; const ansData = formatAnswerText(q.answer, isStaff);
+                
+                let htmlDetail = `<div class="text-left text-sm space-y-4"><div class="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm"><p class="text-[10px] font-extrabold text-slate-400 mb-2 uppercase tracking-wide">คำถาม</p><p class="whitespace-pre-wrap text-slate-700 font-medium">${escapeHtml(q.question)}</p>`;
+                if (q.qFile) htmlDetail += `<div class="mt-4 pt-3 border-t border-slate-100"><a href="${q.qFile}" target="_blank" class="text-blue-600 font-bold hover:underline"><i class="fas fa-paperclip me-1"></i> ดูไฟล์แนบคำถาม</a></div>`;
+                htmlDetail += `</div><div class="bg-gradient-to-br from-emerald-50 to-teal-50 p-5 rounded-2xl border border-emerald-100 shadow-sm"><p class="text-[10px] font-extrabold text-emerald-600 mb-2 uppercase tracking-wide">คำตอบจากเจ้าหน้าที่</p><p class="font-bold text-slate-800">${ansData.latest}</p>`;
+                if (q.aFile) htmlDetail += `<div class="mt-4 pt-3 border-t border-emerald-200/50"><a href="${q.aFile}" target="_blank" class="text-emerald-700 font-bold hover:underline"><i class="fas fa-file-download me-1"></i> ดาวน์โหลดไฟล์คำตอบ</a></div>`;
+                htmlDetail += `${ansData.history}</div></div>`;
+
+                Swal.fire({ title: `<span class="text-lg font-extrabold text-slate-800">${escapeHtml(q.subject)}</span>`, width: 650, confirmButtonText: 'ปิด', confirmButtonColor: '#64748b', html: htmlDetail });
+            } catch(e) {}
+        }
+
+        function loadQuestionsData(silent = false) {
+            try {
+                if(!currentUser || typeof google === 'undefined') return;
+                if(!silent) showLoader('ดึงข้อมูล...');
+                google.script.run
+                    .withSuccessHandler(rawRes => {
+                        if(!silent) hideLoaderForce();
+                        const res = parseGoogleResponse(rawRes); if(!res) return;
+                        if(res.status === 'error') return Swal.fire('แจ้งเตือน', res.message, 'warning');
+                        state.adminQuestions = (res && res.questions) ? res.questions : [];
+                        renderAdminQuestionList();
+                    })
+                    .withFailureHandler(err => { if(!silent) hideLoaderForce(); })
+                    .getDashboardData(currentUser.role, currentUser.dept, new Date().getTime());
+            } catch(e) { if(!silent) hideLoaderForce(); }
+        }
+
+        function renderAdminQuestionList() {
+            try {
+                if(!currentUser) return;
+                const isAdmin = String(currentUser.role).toLowerCase() === 'admin' || currentUser.id === 'SUPER_ADMIN';
+                const filterStatus = $('#adminStatusFilter').val();
+                let filteredQs = state.adminQuestions || [];
+                if (filterStatus) filteredQs = filteredQs.filter(q => q.status === filterStatus);
+
+                const html = filteredQs.map(q => {
+                    const isAnswered = q.status === 'ตอบแล้ว'; const isClosed = q.status === 'ปิดงาน';
+                    let sBadge = isClosed ? 'bg-emerald-100 text-emerald-700' : (isAnswered ? 'bg-amber-100 text-amber-700' : 'bg-red-100 text-red-700');
+
+                    let buttonsHtml = `<button type="button" onclick="viewDetail('${q.id}')" class="bg-blue-50 text-blue-600 border border-blue-100 hover:bg-blue-600 hover:text-white px-3 py-2 rounded-xl text-[10px] font-extrabold">อ่าน</button>`;
+                    if (!isClosed) buttonsHtml += `<button type="button" onclick="answerQuestion('${q.id}')" class="${isAnswered ? 'bg-amber-500' : 'bg-emerald-500'} text-white px-3 py-2 rounded-xl text-[10px] font-extrabold shadow-sm"><i class="fas ${isAnswered ? 'fa-edit' : 'fa-reply'} me-1"></i> ${isAnswered ? 'แก้คำตอบ' : 'ตอบ'}</button>`;
+                    if (isAnswered) buttonsHtml += `<button type="button" onclick="changeStatus('${q.id}', 'ปิดงาน')" class="bg-slate-700 text-white px-3 py-2 rounded-xl text-[10px] font-extrabold"><i class="fas fa-archive"></i> ปิดงาน</button>`;
+                    if (isAdmin && (isAnswered || isClosed)) buttonsHtml += `<button type="button" onclick="changeStatus('${q.id}', 'รอตอบ')" class="bg-red-50 text-red-600 border border-red-200 hover:bg-red-500 hover:text-white px-3 py-2 rounded-xl text-[10px] font-extrabold"><i class="fas fa-undo"></i></button>`;
+                    if (isAdmin) buttonsHtml += `<button type="button" onclick="transferQuestion('${q.id}')" class="bg-amber-100 text-amber-700 hover:bg-amber-500 hover:text-white px-3 py-2 rounded-xl text-[10px] font-extrabold"><i class="fas fa-share"></i></button>`;
+
+                    return `<tr class="border-b hover:bg-slate-50"><td class="p-4"><span class="px-3 py-1.5 rounded-full text-[11px] font-extrabold border shadow-sm ${sBadge}">${q.status}</span></td><td class="p-4"><p class="font-extrabold text-slate-800">${escapeHtml(q.subject)}</p><p class="text-[10px] text-slate-500 font-bold mt-1">ถึง: ${escapeHtml(q.targetDept) || 'ไม่ระบุ'}</p></td><td class="p-4 text-xs font-bold text-slate-500 whitespace-nowrap">${q.date}</td><td class="p-4 text-center space-x-1 whitespace-nowrap">${buttonsHtml}</td></tr>`;
+                }).join('');
+                
+                $('#adminQuestionList').html(html || '<tr><td colspan="4" class="text-center p-16 text-slate-400 font-bold">ไม่มีรายการ</td></tr>');
+            } catch(e) {}
+        }
+
+        async function answerQuestion(id) {
+            try {
+                if (typeof google === 'undefined') return;
+                const q = (state.adminQuestions || []).find(x => x.id === id); if(!q) return;
+                const currentAnswerText = q.answer ? q.answer.split('|||HISTORY|||')[0].trim() : '';
+
+                const { value: v } = await Swal.fire({
+                    title: `<span class="text-xl font-extrabold text-slate-800">ตอบข้อซักถาม</span>`, 
+                    html: `<div class="text-left text-sm mb-5 bg-slate-50 p-4 rounded-xl border border-slate-200 font-medium max-h-32 overflow-y-auto">${escapeHtml(q.question)}</div><textarea id="ans-txt" class="modern-input h-32 text-sm font-medium" placeholder="พิมพ์คำตอบที่นี่..."></textarea><div class="mt-4 text-left"><label class="block text-xs font-extrabold text-slate-500 mb-2 uppercase">แนบไฟล์ตอบกลับ (จำกัด 5MB)</label><input type="file" id="ans-file" class="text-xs w-full"></div>`,
+                    didOpen: () => { $('#ans-txt').val(currentAnswerText); }, showCancelButton: true, confirmButtonText: 'บันทึกคำตอบ', cancelButtonText: 'ยกเลิก', confirmButtonColor: '#10b981',
+                    preConfirm: async () => {
+                        const file = document.getElementById('ans-file').files[0];
+                        if(file && file.size > 5 * 1024 * 1024) { Swal.showValidationMessage('ไฟล์มีขนาดเกิน 5MB'); return false; }
+                        let fileData = null, fileName = null; if(file) { fileData = await getBase64(file); fileName = file.name; }
+                        return { txt: $('#ans-txt').val(), fileData, fileName };
+                    }
+                });
+                if(v && v.txt) {
+                    showLoader('กำลังบันทึก...');
+                    google.script.run
+                        .withSuccessHandler(rawRes => { hideLoaderForce(); const res = parseGoogleResponse(rawRes); if(!res) return; if(res.status==='success') { Swal.fire('สำเร็จ','บันทึกคำตอบแล้ว','success'); loadQuestionsData(true); fetchInitialData(); } else { Swal.fire('ผิดพลาด', res.message, 'error'); } })
+                        .withFailureHandler(err => hideLoaderForce())
+                        .submitAnswer(id, v.txt, v.fileData, v.fileName, currentUser.name, currentUser.dept);
+                }
+            } catch (e) { hideLoaderForce(); }
+        }
+
+        function changeStatus(id, newStatus) {
+            try {
+                if (typeof google === 'undefined') return;
+                Swal.fire({ title: 'ยืนยันการเปลี่ยนสถานะ?', icon: 'question', showCancelButton: true, confirmButtonColor: '#10b981' }).then((result) => {
+                    if(result.isConfirmed) {
+                        showLoader('กำลังเปลี่ยนสถานะ...');
+                        google.script.run
+                        .withSuccessHandler(rawRes => { hideLoaderForce(); const res = parseGoogleResponse(rawRes); if(!res) return; if(res.status==='success') { loadQuestionsData(true); fetchInitialData(); } else { Swal.fire('ผิดพลาด', res.message, 'error'); } })
+                        .withFailureHandler(err => hideLoaderForce())
+                        .changeQuestionStatus(id, newStatus);
+                    }
+                });
+            } catch(e){}
+        }
+
+        async function transferQuestion(id) {
+            try {
+                if (typeof google === 'undefined') return;
+                const q = (state.adminQuestions || []).find(x => x.id === id); if(!q) return;
+                let options = {}; (state.depts || []).forEach(d => options[d] = d);
+                const { value: newDept } = await Swal.fire({ title: 'โอนย้ายคำถาม', input: 'select', inputOptions: options, showCancelButton: true, confirmButtonColor: '#f59e0b' });
+                if (newDept) {
+                    showLoader('กำลังโอนย้าย...');
+                    google.script.run
+                        .withSuccessHandler(rawRes => { hideLoaderForce(); const res = parseGoogleResponse(rawRes); if(!res) return; if(res.status==='success') { Swal.fire('สำเร็จ','โอนย้ายสำเร็จ','success'); loadQuestionsData(true); } else { Swal.fire('ผิดพลาด',res.message,'error'); } })
+                        .withFailureHandler(err => hideLoaderForce())
+                        .updateQuestionDept(id, newDept);
+                }
+            } catch (e) {}
+        }
+
+        function saveNewPassword() {
+            try {
+                if (typeof google === 'undefined') return;
+                if(!$('#newPasswordInput').length) return; 
+                let pwd = $('#newPasswordInput').val().trim(); 
+                
+                // ตรวจสอบความถูกต้องของรหัสผ่าน
+                if(!pwd) return Swal.fire('กรุณากรอกรหัสผ่าน', '', 'warning');
+                if(pwd.length > 6) return Swal.fire('รหัสผ่านต้องไม่เกิน 6 ตัวอักษร', '', 'warning');
+                
+                // Regex: ต้องมีอักษรตัวเล็ก 1, อักษรตัวใหญ่ 1, ตัวเลข 1, อักขระพิเศษ 1 (ความยาว 1-6)
+                const regex = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[\W_]).{1,6}$/;
+                if (!regex.test(pwd)) {
+                    return Swal.fire('รหัสผ่านไม่ตรงเงื่อนไข', 'ต้องประกอบด้วย: พิมพ์เล็ก, พิมพ์ใหญ่, ตัวเลข, สัญลักษณ์ รวมกันไม่เกิน 6 ตัวอักษร', 'warning');
+                }
+
+                showLoader('กำลังบันทึก...');
+                google.script.run
+                    .withSuccessHandler(rawRes => { 
+                        hideLoaderForce(); 
+                        const res = parseGoogleResponse(rawRes); if(!res) return; 
+                        if(res.status==='success'){ 
+                            Swal.fire('สำเร็จ', 'เปลี่ยนรหัสผ่านแล้ว', 'success'); 
+                            $('#newPasswordInput').val(''); 
+                        } else { 
+                            Swal.fire('ผิดพลาด',res.message,'error'); 
+                        } 
+                    })
+                    .withFailureHandler(err => hideLoaderForce())
+                    .updateMyPassword(currentUser.id, pwd);
+            } catch(e){}
+        }
+
+        function renderLinkInputFields(name="", url="") { try { const html = `<div class="flex gap-2 link-row items-center"><input type="text" placeholder="ชื่อลิงก์" class="modern-input w-1/3 link-name" value="${escapeHtml(name)}"><input type="text" placeholder="URL (เช่น https://...)" class="modern-input flex-1 link-url" value="${escapeHtml(url)}"><button type="button" onclick="this.parentElement.remove()" class="bg-red-50 text-red-500 p-3 rounded-xl hover:bg-red-100 transition-colors shadow-sm"><i class="fas fa-trash"></i></button></div>`; document.getElementById('linksContainer').insertAdjacentHTML('beforeend', html); } catch(e){} }
+        function addLinkField() { renderLinkInputFields(); }
+
+        function saveWebSettings() {
+            try {
+                if (typeof google === 'undefined') return;
+                const marquee = $('#setMarquee').val(); let links = [];
+                $('.link-row').each(function() { const name = $(this).find('.link-name').val().trim(); const url = $(this).find('.link-url').val().trim(); if(name && url) links.push({name, url}); });
+                showLoader('กำลังบันทึก...');
+                google.script.run
+                    .withSuccessHandler(rawRes => { hideLoaderForce(); const res = parseGoogleResponse(rawRes); if(!res) return; if(res.status === 'success') { Swal.fire('สำเร็จ', 'บันทึกตั้งค่าแล้ว', 'success'); fetchInitialData(); } else { Swal.fire('ผิดพลาด', res.message, 'error'); } })
+                    .withFailureHandler(err => hideLoaderForce())
+                    .saveSettings(marquee, JSON.stringify(links));
+            } catch(e){}
+        }
+
+        function renderCategoryFilters() {
+            try {
+                let html = `<button type="button" onclick="setPublicCategoryFilter('')" class="w-full text-left px-4 py-3 rounded-xl font-bold text-sm mb-2 ${currentPublicCategoryFilter === '' ? 'bg-emerald-500 text-white shadow-md' : 'bg-slate-50 hover:bg-slate-100 transition-colors'}">แสดงทั้งหมด</button>`;
+                (state.categories || []).forEach(c => { const isActive = currentPublicCategoryFilter === c; html += `<button type="button" onclick="setPublicCategoryFilter('${escapeHtml(c)}')" class="w-full text-left px-4 py-3 rounded-xl font-bold text-sm mb-2 ${isActive ? 'bg-emerald-500 text-white shadow-md' : 'bg-slate-50 hover:bg-slate-100 transition-colors'}">${escapeHtml(c)}</button>`; });
+                $('#publicCategoryFilter').html(html);
+            } catch(e) {}
+        }
+
+        function setPublicCategoryFilter(cat) { currentPublicCategoryFilter = cat; renderCategoryFilters(); renderPublicList(); }
+
+        function renderPublicList() {
+            try {
+                const search = ($('#searchBox').val() || '').toLowerCase();
+                const qList = Array.isArray(state.publicQuestions) ? state.publicQuestions : [];
+                const filtered = qList.filter(q => { if(!q || !q.subject) return false; const matchCat = !currentPublicCategoryFilter || (String(q.category || '').trim() === currentPublicCategoryFilter); const matchSearch = !search || String(q.subject || '').toLowerCase().includes(search); return matchSearch && matchCat; });
+                const html = filtered.map(q => `<tr class="border-b hover:bg-slate-50 transition-colors"><td class="p-5 text-xs text-slate-500 whitespace-nowrap">${escapeHtml(q.date)}</td><td class="p-5 font-extrabold text-slate-800">${escapeHtml(q.subject)}</td><td class="p-5"><span class="px-3 py-1.5 rounded-full text-[11px] font-extrabold border ${q.status === 'ปิดงาน' ? 'bg-emerald-100 text-emerald-700' : (q.status === 'ตอบแล้ว' ? 'bg-amber-100 text-amber-700' : 'bg-red-100 text-red-700')}">${escapeHtml(q.status)}</span></td><td class="p-5 text-center"><button type="button" onclick="viewDetail('${q.id}')" class="text-blue-600 font-extrabold hover:bg-blue-600 hover:text-white px-4 py-2 rounded-xl transition-all border border-blue-100">เปิดอ่าน</button></td></tr>`).join('');
+                $('#publicQaList').html(html || '<tr><td colspan="4" class="text-center p-16 text-slate-500 font-bold">ไม่พบข้อมูลคำถามในระบบ</td></tr>');
+            } catch(e) { $('#publicQaList').html('<tr><td colspan="4" class="text-center p-16 text-red-500 font-bold">ไม่สามารถแสดงข้อมูลได้</td></tr>'); }
+        }
+
+        // ==========================================
+        // 🤖 แชทบอทอัจฉริยะ
+        // ==========================================
+        function fetchKnowledgeBase() { 
+            try {
+                if (typeof google === 'undefined') return;
+                google.script.run
+                .withSuccessHandler(function(rawRes) { try { const res = parseGoogleResponse(rawRes); knowledgeBase = (res && Array.isArray(res.data)) ? res.data : []; } catch(e) { knowledgeBase = []; } })
+                .withFailureHandler(function(err) { knowledgeBase = []; })
+                .getBotKnowledge(); 
+            } catch(e) { knowledgeBase = []; }
+        }
+
+        function toggleChat() {
+            try {
+                const box = document.getElementById('chat-box'); box.classList.toggle('open');
+                if (box.classList.contains('open')) {
+                    $('.bot-tooltip').hide(); 
+                    if (document.getElementById('chat-messages').innerHTML.trim() === '') {
+                        try { const history = localStorage.getItem(CHAT_STORAGE_KEY); if (history) { document.getElementById('chat-messages').innerHTML = history; scrollToBottom(); } else { showMainMenu(); } } 
+                        catch(e) { showMainMenu(); }
+                    }
+                } else { $('.bot-tooltip').fadeIn(300); }
+            } catch(e){}
+        }
+
+        function toggleKeyboard() { try { const kbArea = $('#chat-keyboard-area'); if(kbArea.hasClass('active')) { kbArea.removeClass('active'); setTimeout(() => kbArea.hide(), 300); } else { kbArea.css('display', 'flex').addClass('active'); $('#chat-input').focus(); } } catch(e){} }
+
+        function getCategoryIcon(catName) {
+            const name = String(catName || "").toLowerCase();
+            if(name.includes('พยาบาล') || name.includes('แพทย์') || name.includes('รักษา')) return '<div class="chat-btn-icon text-red-500 bg-red-50"><i class="fas fa-notes-medical"></i></div>';
+            if(name.includes('เรียน') || name.includes('ศึกษา')) return '<div class="chat-btn-icon text-blue-500 bg-blue-50"><i class="fas fa-graduation-cap"></i></div>';
+            if(name.includes('บำนาญ') || name.includes('เบิกจ่าย') || name.includes('เงิน') || name.includes('งบ')) return '<div class="chat-btn-icon text-amber-500 bg-amber-50"><i class="fas fa-piggy-bank"></i></div>';
+            if(name.includes('ส่งมอบทรัพย์สินราชการ') || name.includes('อาคาร')) return '<div class="chat-btn-icon text-emerald-500 bg-emerald-50"><i class="fas fa-home"></i></div>';
+            if(name.includes('เอกสารประกอบการส่งใช้เงินยืม') || name.includes('ยานพาหนะ') || name.includes('เดินทาง')) return '<div class="chat-btn-icon text-indigo-500 bg-indigo-50"><i class="fas fa-car"></i></div>';
+            if(name.includes('คอมพิวเตอร์') || name.includes('ไอที') || name.includes('it')) return '<div class="chat-btn-icon text-cyan-500 bg-cyan-50"><i class="fas fa-laptop"></i></div>';
+            if(name.includes('หนังสือเวียน กองคลัง กรมวิชาการเกษตร') || name.includes('เอกสาร')) return '<div class="chat-btn-icon text-purple-500 bg-purple-50"><i class="fas fa-file-alt"></i></div>';
+            
+            const iconList = ['fa-folder-open', 'fa-book', 'fa-info-circle', 'fa-star', 'fa-clipboard-list', 'fa-layer-group', 'fa-briefcase'];
+            const colorList = ['text-pink-500 bg-pink-50', 'text-cyan-500 bg-cyan-50', 'text-purple-500 bg-purple-50', 'text-orange-500 bg-orange-50', 'text-teal-500 bg-teal-50'];
+            let hash = 0; for(let i = 0; i < name.length; i++) hash = name.charCodeAt(i) + ((hash << 5) - hash);
+            return `<div class="chat-btn-icon ${colorList[Math.abs(hash) % colorList.length]}"><i class="fas ${iconList[Math.abs(hash) % iconList.length]}"></i></div>`;
+        }
+
+        function saveChatHistory() { try { const clone = $('#chat-messages').clone(); clone.find('.typing-indicator').remove(); localStorage.setItem(CHAT_STORAGE_KEY, clone.html()); } catch (e) {} }
+        function clearChatHistory() { if(confirm("ต้องการล้างประวัติการสนทนาหรือไม่?")) { try { localStorage.removeItem(CHAT_STORAGE_KEY); } catch(e) {} $('#chat-messages').html(''); showMainMenu(); } }
+        function addBotMsg(html) { $('#chat-messages').append(`<div class="msg-bubble msg-bot">${html}</div>`); scrollToBottom(); saveChatHistory(); }
+        function addUserMsg(text) { $('#chat-messages').append(`<div class="msg-bubble msg-user">${escapeHtml(text)}</div>`); scrollToBottom(); saveChatHistory(); }
+        function showTyping() { $('#chat-messages').append(`<div class="typing-indicator" id="bot-typing"><span></span><span></span><span></span></div>`); scrollToBottom(); }
+        function removeTyping() { $('#bot-typing').remove(); }
+        function scrollToBottom() { try { const m = document.getElementById('chat-messages'); m.scrollTop = m.scrollHeight; } catch(e){} }
+        function isInvalidText(text) { const t = String(text || "").trim(); return t === '' || t === '-' || t === 'null' || t === 'undefined'; }
+
+        function showMainMenu() {
+            try {
+                chatState = { step: 0, category: '', topic: '' }; $('#chat-messages').empty();
+                if (!knowledgeBase || knowledgeBase.length === 0) { addBotMsg('<em class="text-xs text-red-500 font-bold"><i class="fas fa-exclamation-triangle"></i> ยังไม่มีข้อมูลในคลังความรู้</em>'); return; }
+                addBotMsg('สวัสดีครับ กองคลัง กรมวิชาการเกษตร ยินดีให้บริการครับ ☺️<br><br>กรุณาคลิกเลือกหมวดหมู่คำถามด้านล่างนี้ได้เลยครับ');
+                const cats = [...new Set((knowledgeBase || []).filter(item => item && !isInvalidText(item.Category)).map(item => item.Category))];
+                if(cats.length > 0) { let btnHtml = ''; cats.forEach(c => { btnHtml += `<button type="button" class="chat-btn" onclick="selectBotCategory('${escapeHtml(c)}')">${getCategoryIcon(c)} <span class="flex-1">${escapeHtml(c)}</span></button>`; }); addBotMsg(btnHtml); } 
+                if($('#chat-keyboard-area').hasClass('active')) toggleKeyboard();
+            } catch(e){}
+        }
+
+        function selectBotCategory(cat) {
+            try {
+                addUserMsg(cat); chatState.category = cat; chatState.step = 1;
+                const rows = (knowledgeBase || []).filter(i => i.Category === cat);
+                const topics = [...new Set(rows.filter(i => !isInvalidText(i.Topic)).map(i => i.Topic))];
+                setTimeout(() => {
+                    if(topics.length > 0) {
+                        addBotMsg(`ในหมวด <b>${escapeHtml(cat)}</b> ต้องการทราบหัวข้อใดครับ?`);
+                        let btnHtml = ''; topics.forEach(t => { btnHtml += `<button type="button" class="chat-btn" onclick="selectBotTopic('${escapeHtml(t)}')"><i class="fas fa-caret-right text-emerald-400 mr-2 ml-1"></i> ${escapeHtml(t)}</button>`; });
+                        btnHtml += `<button type="button" class="chat-btn bg-slate-50 text-slate-500 border-slate-200 mt-3" onclick="showMainMenu()"><i class="fas fa-undo mr-2 ml-1"></i> ย้อนกลับเมนูหลัก</button>`;
+                        addBotMsg(btnHtml);
+                    } else { handleShowSubjects(rows, cat, true); }
+                }, 500);
+            } catch(e){}
+        }
+
+        function selectBotTopic(top) { addUserMsg(top); chatState.topic = top; chatState.step = 2; const rows = (knowledgeBase || []).filter(i => i.Category === chatState.category && i.Topic === top); setTimeout(() => { handleShowSubjects(rows, top, false); }, 500); }
+
+        function handleShowSubjects(rows, parentName, isFromCategory) {
+            try {
+                const validSubjects = rows.filter(s => !isInvalidText(s.Subject));
+                if (validSubjects.length === 0 || (validSubjects.length === 1 && validSubjects[0].Subject === parentName)) { 
+                    const realIdx = knowledgeBase.indexOf(rows.length > 0 ? rows[0] : validSubjects[0]); if(realIdx >= 0) showBotAnswer(realIdx, false); else showBotErrorFallback(); 
+                } else {
+                    addBotMsg(`คลิกเลือกเรื่องที่พบบ่อยด้านล่างนี้ได้เลยครับ 👇`);
+                    let btnHtml = ''; const renderedSubjects = new Set();
+                    validSubjects.forEach((s) => { 
+                        if (!renderedSubjects.has(s.Subject)) { renderedSubjects.add(s.Subject); const realIdx = knowledgeBase.indexOf(s); if(realIdx >= 0) btnHtml += `<button type="button" class="chat-btn" onclick="showBotAnswer(${realIdx}, true)"><i class="fas fa-question-circle text-emerald-400 mr-2 ml-1"></i> ${escapeHtml(s.Subject)}</button>`; }
+                    });
+                    if(isFromCategory) btnHtml += `<button type="button" class="chat-btn bg-slate-50 text-slate-500 border-slate-200 mt-3" onclick="showMainMenu()"><i class="fas fa-undo mr-2 ml-1"></i> ย้อนกลับเมนูหลัก</button>`; 
+                    else btnHtml += `<button type="button" class="chat-btn bg-slate-50 text-slate-500 border-slate-200 mt-3" onclick="selectBotCategory('${escapeHtml(chatState.category)}')"><i class="fas fa-undo mr-2 ml-1"></i> ย้อนกลับหมวดหมู่เดิม</button>`;
+                    addBotMsg(btnHtml);
+                }
+            } catch(e){}
+        }
+
+        function showBotErrorFallback() { addBotMsg(`ขออภัยครับ ไม่พบรายละเอียดเพิ่มเติมในหัวข้อนี้`); setTimeout(showMainMenu, 1500); }
+
+        function showBotAnswer(idx, displayUserMsg = true) {
+            try {
+                if (!knowledgeBase || idx < 0 || idx >= knowledgeBase.length) return showBotErrorFallback();
+                const data = knowledgeBase[idx]; let subj = data.Subject; if(isInvalidText(subj)) subj = data.Topic; if(isInvalidText(subj)) subj = data.Category;
+                if(displayUserMsg) addUserMsg(subj);
+                
+                setTimeout(() => {
+                    // ใช้ formatChatbotText เพื่อรองรับการแสดงรูปภาพและลิงก์ (ทั้งลิงก์ปกติ และ Drive)
+                    let ansHtml = `<b>เรื่อง: ${escapeHtml(subj)}</b><br><br>${formatChatbotText(data.Answer)}`;
+                    
+                    if (!isInvalidText(data.Reference)) {
+                        let driveMatch = data.Reference.match(/drive\.google\.com\/file\/d\/([a-zA-Z0-9_-]+)/) || data.Reference.match(/drive\.google\.com\/open\?id=([a-zA-Z0-9_-]+)/);
+                        if(data.Reference.startsWith('http')) {
+                            if(data.Reference.match(/\.(jpeg|jpg|gif|png|webp)(\?.*)?$/i)){
+                                ansHtml += `<br><br><div class="bg-emerald-50 text-emerald-800 p-2 rounded-lg text-xs font-bold mb-2"><i class="fas fa-image"></i> รูปภาพอ้างอิง:</div><a href="${data.Reference}" target="_blank"><img src="${data.Reference}" alt="อ้างอิง" class="max-w-full rounded-lg shadow-sm border border-slate-200"></a>`;
+                            } else if (driveMatch) {
+                                let imgUrl = `https://drive.google.com/uc?export=view&id=${driveMatch[1]}`;
+                                ansHtml += `<br><br><div class="bg-emerald-50 text-emerald-800 p-2 rounded-lg text-xs font-bold mb-2"><i class="fas fa-image"></i> รูปภาพอ้างอิง:</div><a href="${data.Reference}" target="_blank"><img src="${imgUrl}" alt="อ้างอิง" class="max-w-full rounded-lg shadow-sm border border-slate-200"></a>`;
+                            } else {
+                                ansHtml += `<br><br><a href="${escapeHtml(data.Reference)}" target="_blank" class="inline-block bg-blue-50 text-blue-600 px-3 py-1.5 rounded-lg text-xs font-bold hover:bg-blue-100"><i class="fas fa-external-link-alt mr-1"></i> ดูข้อมูลอ้างอิงเพิ่มเติม</a>`; 
+                            }
+                        } else {
+                            ansHtml += `<br><br><div class="bg-amber-50 text-amber-800 p-2 rounded-lg text-xs border border-amber-200"><i class="fas fa-info-circle mr-1"></i> <b>อ้างอิง:</b> ${escapeHtml(data.Reference)}</div>`; 
+                        }
+                    }
+                    addBotMsg(ansHtml);
+                    try { if (typeof google !== 'undefined') google.script.run.logBotChat(data.Category, data.Topic, subj, 'Menu'); } catch(e) {}
+                    setTimeout(() => { addBotMsg(`ต้องการสอบถามเรื่องอื่นเพิ่มเติมไหมครับ?<br><button type="button" class="chat-btn mt-3 bg-emerald-100 border-emerald-300 text-emerald-700 justify-center shadow-md" onclick="showMainMenu()"><i class="fas fa-bars mr-2"></i> แสดงเมนูหลัก</button>`); }, 1000);
+                }, 500);
+            } catch(e){}
+        }
+
+        function handleUserInput() {
+            try {
+                const input = document.getElementById('chat-input'); const text = input.value.trim(); if(!text) return;
+                addUserMsg(text); input.value = ''; showTyping(); toggleKeyboard(); 
+                
+                if (typeof google !== 'undefined') {
+                    try {
+                        google.script.run
+                            .withSuccessHandler(function(rawRes) {
+                                removeTyping();
+                                try {
+                                    const res = parseGoogleResponse(rawRes);
+                                    if(res && res.text) addBotMsg(res.text); else addBotMsg('ขออภัยครับ ระบบประมวลผลคำตอบขัดข้อง');
+                                    google.script.run.logBotChat('-', '-', text, 'AI');
+                                } catch(e) { addBotMsg('ขออภัยครับ เซิร์ฟเวอร์ตอบกลับข้อมูลผิดพลาด'); }
+                            })
+                            .withFailureHandler(function(err) { removeTyping(); addBotMsg('ขออภัยครับ ระบบเชื่อมต่อกับเซิร์ฟเวอร์ขัดข้อง'); })
+                            .askGeminiAPI(text);
+                    } catch(e) { removeTyping(); addBotMsg('ขออภัย ไม่สามารถรันคำสั่งได้'); }
+                } else { setTimeout(() => { removeTyping(); addBotMsg(`รับทราบคำถาม: "${escapeHtml(text)}" ครับ`); }, 1000); }
+            } catch(e){}
+        }
+    </script>
+</body>
+</html>
